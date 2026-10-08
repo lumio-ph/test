@@ -1,0 +1,5 @@
+fellow_id,recorded_at,submitted,submission_date,submission_deadline,submitted_on_time,assessment_status,assessment_score,assessment_max_score,detailed_feedback
+fellow-alexandra-smith,2026-10-02,yes,2026-10-01,2026-10-02,,pending,,,
+fellow-daniel-mensah,2026-09-28,yes,2026-09-28,2026-10-02,,pending,,,
+fellow-daniel-mensah,2026-10-05,yes,2026-09-28,2026-10-02,,complete,78,100,"DEMONSTRATION FEEDBACK. A clear, well-evidenced investment case with a realistic view of the exit route. The market sizing leans on top-down figures; the strongest submissions in the cohort built the case bottom-up from customer data. The risk section identifies the right issues but would be stronger with a view on how the structure mitigates each one."
+fellow-amara-okafor,2026-10-05,no,,2026-11-30,,not_started,,,

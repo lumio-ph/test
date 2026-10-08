@@ -1,0 +1,4 @@
+firm_id,firm_name,cohort_id,logo_url,report_token,report_enabled
+firm-example-capital,Example Capital,cohort-2026,,k7Qm2xP9aRf4,yes
+firm-horizon-ventures,Horizon Ventures,cohort-2026,,h3Tz8vLw6NcY,yes
+firm-rest-of-cohort,Other cohort firms (demo),cohort-2026,,r8Lp3Wq6Zs1d,no

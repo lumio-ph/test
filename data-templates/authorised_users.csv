@@ -1,0 +1,5 @@
+user_id,email,name,firm_id,role,access_status
+u1,managing.partner@example-capital.demo,Managing Partner (demo),firm-example-capital,firm_leader,active
+u2,coo@example-capital.demo,COO (demo),firm-example-capital,firm_leader,invited
+u3,partner@horizon-ventures.demo,Partner (demo),firm-horizon-ventures,firm_leader,active
+u4,programme@included.vc.demo,Programme team (demo),,admin,active

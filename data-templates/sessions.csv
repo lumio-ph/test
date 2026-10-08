@@ -1,0 +1,13 @@
+session_id,cohort_id,session_number,session_title,session_date,status,facilitator
+s01,cohort-2026,1,The state of venture capital in Africa,2026-08-17,held,Session facilitator (demo)
+s02,cohort-2026,2,Investment judgement and conviction,2026-08-24,held,Session facilitator (demo)
+s03,cohort-2026,3,Sourcing and building a proprietary pipeline,2026-08-31,held,Session facilitator (demo)
+s04,cohort-2026,4,Due diligence that changes decisions,2026-09-07,held,Session facilitator (demo)
+s05,cohort-2026,5,Valuation and deal structuring,2026-09-14,held,Session facilitator (demo)
+s06,cohort-2026,6,Portfolio construction and reserves,2026-09-21,held,Session facilitator (demo)
+s07,cohort-2026,7,Working with founders after the cheque,2026-09-28,held,Session facilitator (demo)
+s08,cohort-2026,8,Writing for the investment committee,2026-10-05,held,Session facilitator (demo)
+s09,cohort-2026,9,Blended and catalytic capital,2026-10-12,scheduled,Session facilitator (demo)
+s10,cohort-2026,10,"Exits, secondaries and liquidity",2026-10-19,scheduled,Session facilitator (demo)
+s11,cohort-2026,11,Raising from LPs,2026-10-26,scheduled,Session facilitator (demo)
+s12,cohort-2026,12,Capstone Lab presentations,2026-11-02,scheduled,Session facilitator (demo)
