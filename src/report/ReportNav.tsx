@@ -28,6 +28,9 @@ export function useReportNav(): Go {
   return override ?? ((t) => navigate(reportPath(t)));
 }
 
+/** True inside the admin preview, where report links switch the preview. */
+export const useInPreview = () => useContext(NavContext) !== null;
+
 /** Scroll to a section inside whichever element is scrolling the report. */
 export function scrollToSection(id: string) {
   const el = document.getElementById(id);

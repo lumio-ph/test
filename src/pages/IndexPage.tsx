@@ -1,4 +1,7 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { DEMO } from '../config';
+import { authApi } from '../data/api';
 import logo from '../assets/included-vc-logo.png';
 import mark from '../assets/africa-mark.png';
 import { useQuery } from '../data/DataProvider';
@@ -11,6 +14,19 @@ import { reportPath } from '../report/ReportNav';
  * leadership only ever receives their own firm's link.
  */
 export function IndexPage() {
+  return DEMO ? <DemoIndex /> : <HostedHome />;
+}
+
+/** Hosted: send people straight to where they belong. */
+function HostedHome() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    authApi.me().then((me) => navigate(me.user ? (me.home ?? '/no-report') : '/sign-in', { replace: true }));
+  }, [navigate]);
+  return null;
+}
+
+function DemoIndex() {
   const { data } = useQuery((r) => r.getDataset(), []);
   if (!data) return null;
   const firms = data.firms.filter((f) => f.reportEnabled !== false);

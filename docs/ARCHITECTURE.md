@@ -29,103 +29,64 @@ data source ─▶ ReportRepository ─▶ metrics (pure functions) ─▶ view-
 Report layouts respond to the width of the report container (CSS container
 queries), so the admin preview can show genuine mobile/tablet/desktop layouts.
 
-## Routes (prototype)
+## Hosted app
+
+```
+browser ──HTTPS──▶ server/app.ts ──▶ SQLite (server/db.ts)
+  sign-in page        auth: one-time email codes, sessions (server/auth.ts)
+  report pages        access rules on every request
+  admin               email: SMTP or test outbox (server/mail.ts)
+```
+
+The server builds each report with the same `InMemoryRepository` and
+`metrics.ts` used by the prototype, from data loaded out of the database, and
+returns only that one view-model.
+
+### Routes
 
 | Route | Shows |
 | --- | --- |
-| `#/r/{firmToken}` | Company report (latest published checkpoint) |
-| `#/r/{firmToken}/{fellowToken}` | Individual fellow report |
+| `/r/{firmToken}` | Company report (latest published checkpoint) |
+| `/r/{firmToken}/{fellowToken}` | Individual fellow report |
 | `…?cp={checkpointId}` | A specific (historical) checkpoint |
-| `#/admin` | Internal admin |
-| `#/` | Prototype index (review only — not part of production) |
+| `/sign-in` | Email + one-time code |
+| `/admin` | Internal admin (admins only) |
 
-A fellow token only resolves under that fellow's own firm token; any other
-combination returns the same "link isn't available" page as an invalid link.
+The self-contained demo (`npm run build:single`) uses the same routes behind
+`#`, with sample data in the page and no sign-in.
 
-## Security status — be explicit
+## Access control (implemented and tested)
 
-**The prototype is not secure and must not hold real data.** All demo data is
-bundled into the page, there is no sign-in, and the admin is open. Opaque tokens
-stop casual URL editing, nothing more.
+Enforced by the server on every request (`server/app.ts`), covered by
+`server/app.test.ts`:
 
-## Phase 3 plan: authentication, permissions, row-level security
+- **Sign-in**: 6-digit code emailed to an address on `authorised_users`.
+  Codes expire after 10 minutes and lock after 5 wrong attempts. Requests are
+  rate-limited per email and per IP. Unknown emails get the same response and
+  no email, so the form can't be used to find out who has access.
+- **Sessions**: random 256-bit token in an HttpOnly, SameSite=Lax cookie
+  (Secure in production), valid 14 days. Codes and tokens are stored only as
+  keyed hashes. Revoking a user ends their sessions on the next request.
+- **Firm isolation**: a firm leader gets a report only when the link's firm
+  is their own firm. Another firm's link, another firm's fellow under their
+  own firm link, or a firm without reports all return the same 404 as a
+  mistyped link, and the attempt is logged.
+- **No other firms' data on the wire**: report responses hold the firm's own
+  fellows plus cohort *averages* only. The browser bundle contains no data.
+- **Drafts**: only published checkpoints are visible to firms.
+- **Admin**: separate role, required for every admin endpoint.
+- **Hardening**: anti-forgery header on all writes, strict
+  Content-Security-Policy, no framing, `Referrer-Policy: no-referrer` (links
+  carry tokens), `noindex`, HSTS in production.
+- **Audit log**: sign-ins, report views, blocked attempts, imports and
+  invitations (Admin → Send & access → Activity).
 
-Recommended stack: **Supabase** (Postgres + Auth + Row Level Security) with
-this front end deployed on Vercel/Netlify, or an equivalent.
+### Not yet done
 
-1. **Sign-in** — passwordless email (magic link / one-time code) for
-   recipients listed in `authorised_users`. No passwords to manage.
-2. **Server-side data only** — report data is fetched per request for the
-   signed-in user; nothing for other firms is ever sent to the browser.
-3. **Row-level security** — every table carries `firm_id` (directly or via
-   `fellow_id`), and policies restrict reads to the caller's firm. The cohort
-   averages are exposed through a view/function that returns only aggregates.
-4. **Links** — keep the opaque token URLs for convenience, but require sign-in
-   *and* firm membership; a token alone never grants access.
-5. **Admin** — separate role (`admin`), required for the admin routes and for
-   writes.
-6. **Audit** — log report views and data imports.
+- An external security review or penetration test.
+- Automatic database backups beyond the host's disk snapshots.
+- SSO / Google sign-in (email codes are enough to start with).
 
-Draft schema and policies (to be finalised in Phase 2/3 — not yet applied):
-
-```sql
-create table firms (
-  id text primary key,
-  cohort_id text not null references cohorts(id),
-  name text not null,
-  logo_url text,
-  report_token text unique not null,
-  report_enabled boolean not null default true
-);
-
-create table fellows (
-  id text primary key,
-  firm_id text not null references firms(id),
-  cohort_id text not null references cohorts(id),
-  first_name text not null,
-  last_name text not null,
-  role text,
-  report_token text unique not null
-);
-
-create table session_records (
-  fellow_id text not null references fellows(id),
-  session_id text not null references sessions(id),
-  attended boolean not null,
-  feedback_submitted boolean not null,
-  what_i_learned text,       -- stored verbatim
-  what_ill_apply text,       -- stored verbatim
-  feedback_submitted_at date,
-  primary key (fellow_id, session_id)
-);
-
-create table authorised_users (
-  id uuid primary key references auth.users(id),
-  email text unique not null,
-  firm_id text references firms(id),           -- null for admins
-  role text not null check (role in ('firm_leader','admin')),
-  access_status text not null default 'invited'
-);
-
--- helper: the caller's firm, only while their access is active
-create function my_firm() returns text language sql stable security definer as $$
-  select firm_id from authorised_users
-  where id = auth.uid() and access_status = 'active'
-$$;
-
-alter table fellows enable row level security;
-create policy "leaders read own firm's fellows" on fellows
-  for select using (firm_id = my_firm());
-
-alter table session_records enable row level security;
-create policy "leaders read own firm's records" on session_records
-  for select using (
-    exists (select 1 from fellows f where f.id = fellow_id and f.firm_id = my_firm())
-  );
--- same pattern for capstone_records; admins get a separate policy via role.
--- Cohort averages come from a security-definer function returning aggregates only.
-```
-
-These policies must be tested with real accounts from two different firms
-(including attempts to read the other firm's rows by ID) before any real data
-is loaded.
+SQLite is the right size for tens of firms and a few hundred fellows. The
+data layer is behind one interface, so moving to Postgres/Supabase later
+doesn't touch the report design.

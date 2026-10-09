@@ -7,6 +7,10 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 // can be shared as a single page (e.g. a hosted preview) without a server.
 export default defineConfig(({ mode }) => ({
   plugins: [react(), ...(mode === 'single' ? [viteSingleFile()] : [])],
+  define: {
+    'import.meta.env.VITE_DEMO': JSON.stringify(mode === 'single' || mode === 'demo' ? '1' : ''),
+  },
+  server: { proxy: { '/api': 'http://localhost:8787' } },
   build: {
     outDir: mode === 'single' ? 'dist-single' : 'dist',
     assetsInlineLimit: mode === 'single' ? 100_000_000 : 4096,

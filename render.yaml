@@ -1,0 +1,26 @@
+# One-click deploy on Render (https://render.com): New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: included-vc-reports
+    runtime: docker
+    plan: starter            # persistent disks need a paid instance
+    healthCheckPath: /api/me
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /var/data/reports.db
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAILS       # your email(s), comma-separated
+        sync: false
+      - key: PUBLIC_URL         # e.g. https://included-vc-reports.onrender.com
+        sync: false
+      - key: SMTP_URL           # leave empty to start in test mode (codes in the logs)
+        sync: false
+      - key: MAIL_FROM          # e.g. Included VC Africa <reports@included.vc>
+        sync: false
+      - key: SEED_DEMO
+        value: "1"

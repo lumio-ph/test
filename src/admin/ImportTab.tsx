@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { importCsv, tableSpecs, templateCsv, type ImportIssue, type TableSpec } from '../data/importSpec';
-import { datasetStore } from '../data/store';
+import { DEMO } from '../config';
+import { useRepository } from '../data/DataProvider';
+import { tableSpecs, templateCsv, type ImportIssue, type TableSpec } from '../data/importSpec';
 import type { Dataset } from '../data/types';
-import { validateDataset } from '../data/validate';
 
 function download(name: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
@@ -16,59 +16,70 @@ function download(name: string, text: string) {
 interface Pending {
   spec: TableSpec;
   fileName: string;
-  items: unknown[];
+  csv: string;
+  count: number;
   issues: ImportIssue[];
   fatal: boolean;
 }
 
 /**
- * Prototype import: parse and validate a CSV in the browser, then swap it
- * into this browser session so every report updates immediately.
- * Nothing is saved — Phase 2 writes to the real database instead.
+ * Import: the CSV is checked first (nothing changes), then applied on
+ * confirmation. Hosted mode saves to the database; demo mode keeps the
+ * change in this browser tab only.
  */
 export function ImportTab({ data }: { data: Dataset }) {
+  const { admin, refresh } = useRepository();
   const [pending, setPending] = useState<Pending | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const onFile = async (spec: TableSpec, file: File | undefined) => {
     if (!file) return;
-    const text = await file.text();
+    const csv = await file.text();
     setApplied(null);
-    setPending({ spec, fileName: file.name, ...importCsv(spec, text) });
+    const r = await admin.importTable(spec, csv, true);
+    setPending({ spec, fileName: file.name, csv, count: r.count, issues: r.issues, fatal: Boolean(r.fatal) });
   };
 
-  const apply = () => {
+  const apply = async () => {
     if (!pending) return;
-    const next: Dataset = {
-      ...data,
-      label: 'Imported data (this browser session only)',
-      [pending.spec.key]: pending.items,
-    };
-    datasetStore.replace(next);
-    const problems = validateDataset(next).filter((i) => i.level === 'error').length;
-    setApplied(
-      `${pending.items.length} ${pending.spec.title.toLowerCase()} rows applied.` +
-        (problems ? ` ${problems} data error(s) now flagged on the Data & checks tab.` : ''),
-    );
-    setPending(null);
+    setBusy(true);
+    try {
+      const r = await admin.importTable(pending.spec, pending.csv, false);
+      const problems = (r.checks ?? []).filter((i) => i.level === 'error').length;
+      setApplied(
+        `${r.count} ${pending.spec.title.toLowerCase()} rows saved.` +
+          (problems ? ` ${problems} data error(s) now flagged on the Data & checks tab.` : ''),
+      );
+      setPending(null);
+      refresh();
+    } catch (e) {
+      setApplied(`Import failed: ${String(e instanceof Error ? e.message : e)}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div className="a-page">
       <h2>Import data</h2>
       <p>
-        One CSV per table, exported from Google Sheets, Airtable or a database. Download the current file to use as a
-        template, edit it, and upload it back. Reflections are kept exactly as written. In this prototype imports live
-        only in this browser tab; reload to return to the demonstration data.
+        One CSV per table: save each tab of the data template as CSV and upload it here. Each upload is checked
+        before anything changes, and replaces that whole table. Reflections are kept exactly as written.
+        {DEMO
+          ? ' In this prototype imports live only in this browser tab; reload to return to the demonstration data.'
+          : ' Changes are saved and appear in every report straight away.'}
       </p>
 
       <div className="a-row" style={{ marginBottom: 20 }}>
         <button className="a-btn" onClick={() => tableSpecs.forEach((s) => download(s.file, templateCsv(s, data)))}>
           Download all CSVs
         </button>
-        <button className="a-btn" onClick={() => (datasetStore.reset(), setApplied('Demonstration data restored.'))}>
-          Reset to demonstration data
-        </button>
+        {admin.reset && (
+          <button className="a-btn" onClick={() => (admin.reset!(), refresh(), setApplied('Demonstration data restored.'))}>
+            Reset to demonstration data
+          </button>
+        )}
         {applied && <span className="a-tag a-tag--ok">{applied}</span>}
       </div>
 
@@ -80,7 +91,7 @@ export function ImportTab({ data }: { data: Dataset }) {
           <p>
             {pending.fatal
               ? 'This file cannot be imported.'
-              : `${pending.items.length} rows ready. Applying replaces the current ${pending.spec.title.toLowerCase()} table.`}
+              : `${pending.count} rows ready. Applying replaces the current ${pending.spec.title.toLowerCase()} table.`}
           </p>
           {pending.issues.slice(0, 50).map((i, n) => (
             <div key={n} className="a-issue">
@@ -93,8 +104,8 @@ export function ImportTab({ data }: { data: Dataset }) {
           {pending.issues.length > 50 && <p>…and {pending.issues.length - 50} more.</p>}
           <div className="a-row" style={{ marginTop: 14 }}>
             {!pending.fatal && (
-              <button className="a-btn a-btn--primary" onClick={apply}>
-                Apply to this session
+              <button className="a-btn a-btn--primary" onClick={apply} disabled={busy}>
+                {busy ? 'Saving…' : DEMO ? 'Apply to this session' : 'Save to database'}
               </button>
             )}
             <button className="a-btn" onClick={() => setPending(null)}>

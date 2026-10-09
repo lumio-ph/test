@@ -4,6 +4,7 @@ import type { ReportContext } from '../data/repository';
 import { formatDate, formatMonthYear } from './format';
 import { FirmMark, Icon } from './primitives';
 import { scrollToSection, useReportNav } from './ReportNav';
+import { SignOutLink } from './SignOut';
 
 export function DemoRibbon({ show }: { show: boolean }) {
   if (!show) return null;
@@ -41,8 +42,9 @@ export function ReportHeader({
             </button>
           ))}
         </nav>
-        {ctx.checkpoints.length > 1 && (
-          <div className="r-header__tools">
+        <div className="r-header__tools">
+          <SignOutLink className="r-mono r-signout" />
+          {ctx.checkpoints.length > 1 && (
             <label className="r-checkpoint">
               <span className="sr-only">Reporting checkpoint</span>
               <select
@@ -59,8 +61,8 @@ export function ReportHeader({
                 ))}
               </select>
             </label>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div className="r-header__stripe" />
     </header>

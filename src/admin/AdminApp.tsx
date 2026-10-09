@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import logo from '../assets/included-vc-logo.png';
 import { useQuery } from '../data/DataProvider';
 import { fellowMetrics } from '../data/metrics';
@@ -10,12 +10,16 @@ import { ReportNavProvider, reportPath, type ReportTarget } from '../report/Repo
 import type { Dataset } from '../data/types';
 import type { FellowReportModel, FirmReportModel } from '../data/repository';
 import { ImportTab } from './ImportTab';
+import { AccessTab } from './AccessTab';
+import { absoluteUrl, appHref, DEMO } from '../config';
+import { AuthRequired, Forbidden, authApi } from '../data/api';
 import { validateDataset } from '../data/validate';
 
-type Tab = 'preview' | 'links' | 'data' | 'import' | 'recipients';
+type Tab = 'preview' | 'links' | 'access' | 'data' | 'import' | 'recipients';
 const tabs: Array<[Tab, string]> = [
   ['preview', 'Preview reports'],
   ['links', 'Report links'],
+  ['access', 'Send & access'],
   ['data', 'Data & checks'],
   ['import', 'Import data'],
   ['recipients', 'Recipients'],
@@ -27,7 +31,9 @@ const tabs: Array<[Tab, string]> = [
  */
 export function AdminApp() {
   const [tab, setTab] = useState<Tab>('preview');
-  const { data } = useQuery((r) => r.getDataset(), []);
+  const { data, error } = useQuery((r) => r.getDataset(), []);
+  if (error instanceof AuthRequired) return <Navigate to="/sign-in?next=/admin" replace />;
+  if (error instanceof Forbidden) return <AdminOnly />;
   if (!data) return null;
 
   return (
@@ -38,7 +44,20 @@ export function AdminApp() {
             <img src={logo} alt="Included VC Africa" />
           </Link>
           <span className="a-top__title">Progress reports · Admin</span>
-          <span className="a-warn">Internal prototype · no sign-in yet · {data.label}</span>
+          {DEMO ? (
+            <span className="a-warn">Internal prototype · no sign-in · {data.label}</span>
+          ) : (
+            <>
+              <span className="a-warn">{data.label}</span>
+              <button
+                className="a-btn"
+                style={{ marginLeft: 'auto' }}
+                onClick={() => authApi.signOut().then(() => (window.location.href = '/sign-in'))}
+              >
+                Sign out
+              </button>
+            </>
+          )}
         </div>
         <nav className="a-tabs" role="tablist">
           {tabs.map(([k, label]) => (
@@ -51,9 +70,26 @@ export function AdminApp() {
       </header>
       {tab === 'preview' && <PreviewTab data={data} />}
       {tab === 'links' && <LinksTab data={data} />}
+      {tab === 'access' && <AccessTab data={data} />}
       {tab === 'data' && <DataTab data={data} />}
       {tab === 'import' && <ImportTab data={data} />}
       {tab === 'recipients' && <RecipientsTab data={data} />}
+    </div>
+  );
+}
+
+function AdminOnly() {
+  return (
+    <div className="r-root">
+      <div className="r-notfound">
+        <div>
+          <div className="r-rule" style={{ margin: '0 auto 20px' }} />
+          <h1 className="r-h2">This area is for the Included VC team.</h1>
+          <p className="r-body">
+            You're signed in, but your account doesn't have admin access. <Link to="/">Go to your report</Link>.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -62,8 +98,7 @@ const reportFirms = (d: Dataset) => d.firms.filter((f) => f.reportEnabled !== fa
 const firmFellows = (d: Dataset, firmId: string) =>
   d.fellows.filter((f) => f.firmId === firmId);
 
-export const absoluteLink = (t: ReportTarget) =>
-  `${window.location.origin}${window.location.pathname}#${reportPath(t)}`;
+export const absoluteLink = (t: ReportTarget) => absoluteUrl(reportPath(t));
 
 /* ------------------------------------------------------------------ */
 
@@ -150,7 +185,7 @@ function PreviewTab({ data }: { data: Dataset }) {
         <div className="a-stage__bar">
           <span>Shareable link</span>
           <code>{absoluteLink(target)}</code>
-          <a className="a-btn" href={`#${reportPath(target)}`} target="_blank" rel="noreferrer">
+          <a className="a-btn" href={appHref(reportPath(target))} target="_blank" rel="noreferrer">
             Open in new tab
           </a>
         </div>
@@ -242,7 +277,7 @@ function LinksTab({ data }: { data: Dataset }) {
                       <td>
                         <div className="a-row" style={{ flexWrap: 'nowrap' }}>
                           <CopyButton text={absoluteLink(t)} />
-                          <a className="a-btn" href={`#${reportPath(t)}`} target="_blank" rel="noreferrer">
+                          <a className="a-btn" href={appHref(reportPath(t))} target="_blank" rel="noreferrer">
                             Open
                           </a>
                         </div>

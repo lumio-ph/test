@@ -1,25 +1,21 @@
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { AdminApp } from './admin/AdminApp';
-import { DataProvider } from './data/DataProvider';
+import { DEMO } from './config';
 import { IndexPage } from './pages/IndexPage';
-import { FellowReportPage, FirmReportPage, ReportNotFound } from './pages/ReportPages';
+import { FellowReportPage, FirmReportPage, NoReportPage, ReportNotFound } from './pages/ReportPages';
+import { SignInPage } from './pages/SignInPage';
 
-/*
- * Hash routing keeps the prototype deployable as static files (or a single
- * HTML page). Production moves to path routes behind authentication.
- */
-export function App() {
+/** Routes shared by the hosted app and the self-contained demo. */
+export function AppRoutes() {
   return (
-    <DataProvider>
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<IndexPage />} />
-          <Route path="/r/:firmToken" element={<FirmReportPage />} />
-          <Route path="/r/:firmToken/:fellowToken" element={<FellowReportPage />} />
-          <Route path="/admin" element={<AdminApp />} />
-          <Route path="*" element={<ReportNotFound />} />
-        </Routes>
-      </HashRouter>
-    </DataProvider>
+    <Routes>
+      <Route path="/" element={<IndexPage />} />
+      <Route path="/r/:firmToken" element={<FirmReportPage />} />
+      <Route path="/r/:firmToken/:fellowToken" element={<FellowReportPage />} />
+      <Route path="/admin" element={<AdminApp />} />
+      {!DEMO && <Route path="/sign-in" element={<SignInPage />} />}
+      {!DEMO && <Route path="/no-report" element={<NoReportPage />} />}
+      <Route path="*" element={<ReportNotFound />} />
+    </Routes>
   );
 }
