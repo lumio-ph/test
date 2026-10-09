@@ -32,6 +32,10 @@ npm run build:single  # everything inlined into dist-single/index.html
 npm run templates     # regenerate data-templates/*.csv
 ```
 
+## Data template
+
+`templates/included-vc-report-data-template.xlsx` is the spreadsheet to fill in: one tab per table, dropdowns, notes on every column, example rows, and a `check_figures` tab. Export each tab as CSV and upload it in the admin's Import tab.
+
 ## Docs
 
 - [docs/DATA_IMPORT.md](docs/DATA_IMPORT.md) — import format, and exactly how every number is calculated
