@@ -29,7 +29,7 @@ export function createMailer(db: DB, opts: { smtpUrl?: string; from: string }): 
       if (!transport) {
         record.run(Date.now(), email.to, email.subject, email.text, email.html, 'test_outbox', null);
         // Test mode only: lets whoever runs the server read sign-in codes in the log.
-        console.log(`[test outbox] to ${email.to}: ${email.subject}`);
+        console.log(`[test outbox] ${new Date().toISOString()} to ${email.to}: ${email.subject}`);
         return;
       }
       try {

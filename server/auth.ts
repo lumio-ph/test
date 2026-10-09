@@ -76,21 +76,30 @@ export class Auth {
     const row = this.db.prepare('select * from login_codes where email = ?').get(email) as
       | { code_hash: string; expires_at: number; attempts: number }
       | undefined;
-    if (!row || row.expires_at < Date.now() || row.attempts >= CODE_MAX_ATTEMPTS) return null;
+    // Reasons go to the server log (never the code itself) so a failed
+    // sign-in can be diagnosed from the host's logs.
+    const reject = (reason: string) => {
+      console.log(`[sign-in] code rejected for ${email}: ${reason}`);
+      return null;
+    };
+    if (!row) return reject('no active code for this email (never requested, already used, or the server restarted since)');
+    if (row.expires_at < Date.now()) return reject('code expired (older than 10 minutes)');
+    if (row.attempts >= CODE_MAX_ATTEMPTS) return reject('locked after 5 wrong attempts; request a new code');
 
     const expected = Buffer.from(row.code_hash, 'hex');
     const given = Buffer.from(this.hash(`${email}:${code}`), 'hex');
     if (code.length !== 6 || !timingSafeEqual(expected, given)) {
       this.db.prepare('update login_codes set attempts = attempts + 1 where email = ?').run(email);
       audit(this.db, 'sign_in_failed', null, email);
-      return null;
+      return reject(`wrong code (attempt ${row.attempts + 1} of ${CODE_MAX_ATTEMPTS}); only the newest code works`);
     }
 
     this.db.prepare('delete from login_codes where email = ?').run(email);
     const user = this.db
       .prepare("select id, email, name, firm_id, role from users where email = ? and access_status in ('active','invited')")
       .get(email) as { id: string; email: string; name: string | null; firm_id: string | null; role: SessionUser['role'] } | undefined;
-    if (!user) return null;
+    if (!user) return reject('email is no longer authorised');
+    console.log(`[sign-in] ${email} signed in`);
     this.db.prepare("update users set access_status = 'active' where id = ? and access_status = 'invited'").run(user.id);
 
     const token = randomBytes(32).toString('base64url');
