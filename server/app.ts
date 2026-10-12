@@ -199,6 +199,34 @@ export function createApp(opts: AppOptions) {
 
   admin.get('/dataset', (_req, res) => res.json(loadDataset(db)));
 
+  const existingLogos = () =>
+    new Map(
+      (db.prepare('select id, logo_url from firms where logo_url is not null and logo_url != ?').all('') as Array<{
+        id: string;
+        logo_url: string;
+      }>).map((r) => [r.id, r.logo_url]),
+    );
+
+  const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp', 'image/gif'];
+
+  /** Upload a firm's logo (stored with the firm; shown in its reports). */
+  admin.post('/firms/:id/logo', express.raw({ type: () => true, limit: '2mb' }), (req, res) => {
+    const type = String(req.get('content-type') ?? '').split(';')[0].trim();
+    if (!LOGO_TYPES.includes(type)) return res.status(400).json({ error: 'Use a PNG, JPG, SVG or WebP image.' });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Empty file.' });
+    const url = `data:${type};base64,${req.body.toString('base64')}`;
+    const r = db.prepare('update firms set logo_url = ? where id = ?').run(url, req.params.id);
+    if (!r.changes) return res.status(404).json({ error: 'not_found' });
+    audit(db, 'logo_updated', req.user, req.params.id);
+    res.json({ ok: true });
+  });
+
+  admin.delete('/firms/:id/logo', (req, res) => {
+    db.prepare('update firms set logo_url = null where id = ?').run(req.params.id);
+    audit(db, 'logo_removed', req.user, req.params.id);
+    res.json({ ok: true });
+  });
+
   /** Current link tokens by firm/fellow id, so re-imports keep sent links working. */
   const existingTokens = () =>
     new Map(
@@ -212,7 +240,7 @@ export function createApp(opts: AppOptions) {
     const spec = tableSpecs.find((s) => s.key === req.params.table);
     if (!spec) return res.status(404).json({ error: 'unknown_table' });
     if (typeof req.body !== 'string') return res.status(400).json({ error: 'send text/csv' });
-    const parsed = importCsv(spec, req.body, existingTokens());
+    const parsed = importCsv(spec, req.body, existingTokens(), existingLogos());
     if (parsed.fatal || req.query.dryRun === '1') return res.json({ applied: false, ...parsed, count: parsed.items.length, items: undefined });
     tx(db, () => {
       replaceTable(db, spec.key, parsed.items as never);
@@ -233,7 +261,7 @@ export function createApp(opts: AppOptions) {
       if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: 'send the .xlsx file' });
       let read: Awaited<ReturnType<typeof readWorkbook>>;
       try {
-        read = await readWorkbook(req.body, existingTokens());
+        read = await readWorkbook(req.body, existingTokens(), existingLogos());
       } catch {
         return res.status(400).json({ error: 'not_a_workbook' });
       }

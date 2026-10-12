@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import logo from '../assets/included-vc-logo.png';
 import { useQuery } from '../data/DataProvider';
@@ -11,17 +11,19 @@ import type { Dataset } from '../data/types';
 import type { FellowReportModel, FirmReportModel } from '../data/repository';
 import { ImportTab } from './ImportTab';
 import { AccessTab } from './AccessTab';
+import { FirmsTab } from './FirmsTab';
 import { absoluteUrl, appHref, DEMO } from '../config';
 import { AuthRequired, Forbidden, authApi } from '../data/api';
 import { validateDataset } from '../data/validate';
 
-type Tab = 'preview' | 'links' | 'access' | 'data' | 'import' | 'recipients';
+type Tab = 'preview' | 'firms' | 'links' | 'access' | 'data' | 'import' | 'recipients';
 const tabs: Array<[Tab, string]> = [
+  ['import', 'Import data'],
+  ['firms', 'Firms & logos'],
   ['preview', 'Preview reports'],
   ['links', 'Report links'],
   ['access', 'Send & access'],
   ['data', 'Data & checks'],
-  ['import', 'Import data'],
   ['recipients', 'Recipients'],
 ];
 
@@ -30,11 +32,17 @@ const tabs: Array<[Tab, string]> = [
  * puts it behind admin sign-in (role = 'admin').
  */
 export function AdminApp() {
-  const [tab, setTab] = useState<Tab>('preview');
+  const [tab, setTab] = useState<Tab | null>(null);
   const { data, error } = useQuery((r) => r.getDataset(), []);
+  // Until real data is uploaded, open on the Import tab. Decided once, so
+  // saving an upload doesn't move you to another tab.
+  useEffect(() => {
+    if (tab === null && data) setTab(data.isSample ? 'import' : 'preview');
+  }, [tab, data]);
   if (error instanceof AuthRequired) return <Navigate to="/sign-in?next=/admin" replace />;
   if (error instanceof Forbidden) return <AdminOnly />;
   if (!data) return null;
+  const current: Tab = tab ?? (data.isSample ? 'import' : 'preview');
 
   return (
     <div className="a-root">
@@ -61,19 +69,31 @@ export function AdminApp() {
         </div>
         <nav className="a-tabs" role="tablist">
           {tabs.map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+            <button key={k} role="tab" aria-selected={current === k} onClick={() => setTab(k)}>
               {label}
             </button>
           ))}
         </nav>
         <div className="a-stripe" />
       </header>
-      {tab === 'preview' && <PreviewTab data={data} />}
-      {tab === 'links' && <LinksTab data={data} />}
-      {tab === 'access' && <AccessTab data={data} />}
-      {tab === 'data' && <DataTab data={data} />}
-      {tab === 'import' && <ImportTab data={data} />}
-      {tab === 'recipients' && <RecipientsTab data={data} />}
+      {data.isSample && !DEMO && (
+        <div className="a-sample">
+          <b>This site is still showing the demonstration data</b> (Example Capital, Horizon Ventures). Upload your data
+          workbook on the Import data tab to replace it with your firms and fellows.
+          {current !== 'import' && (
+            <button className="a-btn a-btn--primary" onClick={() => setTab('import')}>
+              Go to Import data
+            </button>
+          )}
+        </div>
+      )}
+      {current === 'preview' && <PreviewTab data={data} />}
+      {current === 'links' && <LinksTab data={data} />}
+      {current === 'access' && <AccessTab data={data} />}
+      {current === 'firms' && <FirmsTab data={data} />}
+      {current === 'data' && <DataTab data={data} />}
+      {current === 'import' && <ImportTab data={data} />}
+      {current === 'recipients' && <RecipientsTab data={data} />}
     </div>
   );
 }

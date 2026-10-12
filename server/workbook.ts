@@ -53,6 +53,7 @@ async function withoutNotes(buffer: Buffer): Promise<Buffer> {
 export async function readWorkbook(
   buffer: Buffer,
   existingTokens: Map<string, string> = new Map(),
+  existingLogos: Map<string, string> = new Map(),
 ): Promise<{ tables: WorkbookTable[]; missingTabs: string[] }> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load((await withoutNotes(buffer)) as unknown as ArrayBuffer);
@@ -76,7 +77,7 @@ export async function readWorkbook(
       });
       if (Object.values(rec).some((x) => x.trim() !== '')) records.push(rec);
     });
-    tables.push({ spec, ...importRecords(spec, header, records, existingTokens) });
+    tables.push({ spec, ...importRecords(spec, header, records, existingTokens, existingLogos) });
   }
   return { tables, missingTabs };
 }

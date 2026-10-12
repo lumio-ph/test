@@ -147,7 +147,7 @@ const firms: TableSpec<Firm> = {
     { name: 'firm_id', required: true, help: 'Stable internal ID' },
     { name: 'firm_name', required: true, help: 'As it should appear in the report' },
     { name: 'cohort_id', required: true, help: 'Must match cohorts.csv' },
-    { name: 'logo_url', help: 'HTTPS URL of the firm logo (SVG or PNG). Optional.' },
+    { name: 'logo_url', help: 'Optional. Easiest: leave blank and upload the logo in the admin (Firms & logos). Or an https:// image link.' },
     { name: 'report_token', help: 'Opaque link token. Leave blank to generate; keep it to preserve links.' },
     { name: 'report_enabled', help: 'yes / no (default yes). "no" = counted in cohort averages only.' },
   ],
@@ -429,9 +429,14 @@ export function templateCsv(spec: TableSpec, ds: Dataset) {
   );
 }
 
-export function importCsv(spec: TableSpec, text: string, existingTokens?: Map<string, string>) {
+export function importCsv(
+  spec: TableSpec,
+  text: string,
+  existingTokens?: Map<string, string>,
+  existingLogos?: Map<string, string>,
+) {
   const { header, records } = csvObjects(text);
-  return importRecords(spec, header, records, existingTokens);
+  return importRecords(spec, header, records, existingTokens, existingLogos);
 }
 
 /**
@@ -445,6 +450,7 @@ export function importRecords(
   header: string[],
   records: Array<Record<string, string>>,
   existingTokens: Map<string, string> = new Map(),
+  existingLogos: Map<string, string> = new Map(),
 ) {
   const issues: ImportIssue[] = [];
   const missingCols = spec.columns.filter((c) => c.required && !header.includes(c.name)).map((c) => c.name);
@@ -461,6 +467,12 @@ export function importRecords(
   if (spec.key === 'firms' || spec.key === 'fellows') {
     for (const item of items as Array<{ id: string; reportToken: string }>) {
       if (!item.reportToken) item.reportToken = existingTokens.get(item.id) ?? newToken();
+    }
+  }
+  // A blank logo_url keeps the logo uploaded in the admin (Firms & logos).
+  if (spec.key === 'firms') {
+    for (const item of items as Array<{ id: string; logoUrl?: string }>) {
+      if (!item.logoUrl && existingLogos.has(item.id)) item.logoUrl = existingLogos.get(item.id);
     }
   }
   return { items, issues, fatal: false };

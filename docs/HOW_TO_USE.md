@@ -28,8 +28,9 @@ For the Included VC team. Admin account: **ops@included.vc**.
 
 1. Go to your site address followed by **`/admin`**.
 2. Enter **ops@included.vc** and the `ADMIN_PASSWORD`.
-3. You land in the admin, which has six tabs: Preview reports, Report links, Send & access, Data & checks,
-   Import data and Recipients.
+3. You land in the admin. While the site still holds the demonstration data (Example Capital,
+   Horizon Ventures), a yellow banner says so and you start on **Import data**. Your own
+   firms only appear after step D.
 
 ---
 
@@ -61,7 +62,17 @@ Leave every `report_token` column blank. The system creates the private links an
 2. The system checks every tab first. "To review" items are explained; nothing has changed yet.
 3. Click **Save to database**. All reports now use this data.
 
-Need to change something later? Edit the same workbook and upload it again. Links stay the same.
+Need to change something later? Edit the same workbook and upload it again. Links and logos stay the same.
+
+---
+
+## D2. Logos
+
+Admin → **Firms & logos** lists every firm with its logo. The 33 logos from the
+sponsor report are already linked. To add or change one, click **Upload logo** or
+**Replace logo** and pick a PNG, JPG, SVG or WebP file. A wide logo on a white or transparent
+background works best. **Remove** shows the firm's name instead. Rising Tide Africa
+has no logo yet.
 
 ---
 

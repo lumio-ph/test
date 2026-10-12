@@ -85,7 +85,10 @@ for r in basic.iter_rows(min_row=2, values_only=True):
     org = ' '.join(str(r[col['Your Organisation name']]).split())
     if org not in firm_ids:
         firm_ids[org] = 'firm-' + slug(org)
-        firms.append({'firm_id': firm_ids[org], 'firm_name': org, 'cohort_id': COHORT, 'report_enabled': 'yes'})
+        logo = f'public/logos/{firm_ids[org]}.png'
+        firms.append({'firm_id': firm_ids[org], 'firm_name': org, 'cohort_id': COHORT, 'report_enabled': 'yes',
+                      # Logos from the sponsor report ship with the app (public/logos/).
+                      'logo_url': f'/logos/{firm_ids[org]}.png' if __import__('os').path.exists(logo) else ''})
     parts = full.split(' ')
     fid = 'fellow-' + slug(full)
     fellows.append({

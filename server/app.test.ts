@@ -265,4 +265,26 @@ describe('admin', () => {
     expect(r.applied).toBe(true);
     expect((await get(`/api/reports/${EXAMPLE}`, admin)).status).toBe(200);
   });
+
+  it('uploads a firm logo and keeps it when the firms sheet is re-imported', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const up = await fetch(base + '/api/admin/firms/firm-horizon-ventures/logo', {
+      method: 'POST',
+      headers: { 'content-type': 'image/png', 'x-ivc': '1', cookie: admin },
+      body: png,
+    });
+    expect(up.status).toBe(200);
+    const bad = await fetch(base + '/api/admin/firms/firm-horizon-ventures/logo', {
+      method: 'POST',
+      headers: { 'content-type': 'text/html', 'x-ivc': '1', cookie: admin },
+      body: '<script>',
+    });
+    expect(bad.status).toBe(400);
+    const csv =
+      'firm_id,firm_name,cohort_id,logo_url,report_token,report_enabled\n' +
+      sampleDataset.firms.map((f) => [f.id, f.name, f.cohortId, '', '', f.reportEnabled === false ? 'no' : 'yes'].join(',')).join('\n');
+    await post('/api/admin/import/firms', csv, admin, 'text/csv');
+    const report = (await (await get(`/api/reports/${HORIZON}`, admin)).json()) as { firm: { logoUrl?: string } };
+    expect(report.firm.logoUrl).toBe(`data:image/png;base64,${png.toString('base64')}`);
+  });
 });

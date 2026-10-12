@@ -114,6 +114,18 @@ export const apiAdminActions: AdminActions = {
     if (!res.ok) throw new Error(res.status === 400 ? 'That file is not a readable .xlsx workbook.' : `Upload failed (${res.status})`);
     return (await res.json()) as WorkbookImportResult;
   },
+  async uploadLogo(firmId: string, file: File) {
+    const res = await fetch(`/api/admin/firms/${encodeURIComponent(firmId)}/logo`, {
+      method: 'POST',
+      headers: { 'content-type': file.type || 'application/octet-stream', 'x-ivc': '1' },
+      body: file,
+    });
+    if (res.status === 401) throw new AuthRequired();
+    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Upload failed (${res.status})`);
+  },
+  async removeLogo(firmId: string) {
+    await call(`/api/admin/firms/${encodeURIComponent(firmId)}/logo`, { method: 'DELETE' });
+  },
   async invite(firmId: string) {
     const r = await call<{ sent: number; failed: string[]; link: string }>(`/api/admin/invite/${encodeURIComponent(firmId)}`, {
       method: 'POST',

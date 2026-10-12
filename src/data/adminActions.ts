@@ -25,6 +25,8 @@ export interface AdminActions {
   importWorkbook?(file: File, dryRun: boolean): Promise<WorkbookImportResult>;
   /** Demo only: restore the sample data. */
   reset?(): void;
+  uploadLogo?(firmId: string, file: File): Promise<void>;
+  removeLogo?(firmId: string): Promise<void>;
   invite?(firmId: string): Promise<{ sent: number; failed: string[]; link: string }>;
   setCheckpointStatus?(id: string, status: 'draft' | 'published'): Promise<void>;
   outbox?(): Promise<{ live: boolean; messages: OutboxMessage[] }>;
