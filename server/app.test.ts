@@ -18,6 +18,7 @@ const OTHER_COHORT_FIRM = 'r8Lp3Wq6Zs1d';
 const EXAMPLE_LEADER = 'managing.partner@example-capital.demo';
 const HORIZON_LEADER = 'partner@horizon-ventures.demo';
 const ADMIN = 'admin@included.test';
+const ADMIN_PASSWORD = 'correct horse battery staple';
 
 let db: DB;
 let server: Server;
@@ -33,6 +34,7 @@ beforeAll(async () => {
     secret: 'x'.repeat(40),
     baseUrl: 'https://reports.test',
     adminEmails: [ADMIN],
+    adminPassword: ADMIN_PASSWORD,
     secureCookies: false,
   });
   const { ensureAdmins } = await import('./db');
@@ -54,21 +56,19 @@ const post = (path: string, body: unknown, cookie = '', type = 'application/json
   });
 const get = (path: string, cookie = '') => fetch(base + path, { headers: { cookie } });
 
-function lastCodeFor(email: string) {
-  const row = db
-    .prepare('select subject from outbox where to_addr = ? order by id desc limit 1')
-    .get(email) as { subject: string } | undefined;
-  return row?.subject.match(/^(\d{6})/)?.[1];
+const cookieOf = (res: Response) => res.headers.get('set-cookie')!.split(';')[0];
+
+/** Partner sign-in: email entered on their firm's link. */
+async function signIn(email: string, firmToken = email === HORIZON_LEADER ? HORIZON : EXAMPLE) {
+  const res = await post('/api/auth/email', { email, firmToken });
+  expect(res.status).toBe(200);
+  return { cookie: cookieOf(res), home: ((await res.json()) as { home: string }).home };
 }
 
-async function signIn(email: string) {
-  expect((await post('/api/auth/request-code', { email })).status).toBe(200);
-  const code = lastCodeFor(email);
-  expect(code).toMatch(/^\d{6}$/);
-  const res = await post('/api/auth/verify', { email, code });
+async function signInAdmin(email = ADMIN, password = ADMIN_PASSWORD) {
+  const res = await post('/api/auth/admin', { email, password });
   expect(res.status).toBe(200);
-  const cookie = res.headers.get('set-cookie')!.split(';')[0];
-  return { cookie, home: ((await res.json()) as { home: string }).home };
+  return { cookie: cookieOf(res), home: ((await res.json()) as { home: string }).home };
 }
 
 describe('signing in', () => {
@@ -76,40 +76,37 @@ describe('signing in', () => {
     expect((await get(`/api/reports/${EXAMPLE}`)).status).toBe(401);
   });
 
-  it('sends a code only to authorised emails, but answers identically', async () => {
-    const before = (db.prepare('select count(*) as c from outbox').get() as { c: number }).c;
-    const res = await post('/api/auth/request-code', { email: 'stranger@nowhere.test' });
-    expect(res.status).toBe(200);
-    const after = (db.prepare('select count(*) as c from outbox').get() as { c: number }).c;
-    expect(after).toBe(before);
-  });
-
-  it('takes a firm leader straight to their own report', async () => {
+  it('lets a firm leader in with just their email on their own firm link', async () => {
     const { home } = await signIn(EXAMPLE_LEADER);
     expect(home).toBe(`/r/${EXAMPLE}`);
   });
 
-  it('rejects a wrong code and locks after too many attempts', async () => {
-    await post('/api/auth/request-code', { email: HORIZON_LEADER });
-    const real = lastCodeFor(HORIZON_LEADER)!;
-    const wrong = real === '000000' ? '111111' : '000000';
-    for (let i = 0; i < 5; i++) expect((await post('/api/auth/verify', { email: HORIZON_LEADER, code: wrong })).status).toBe(400);
-    // Locked: even the right code fails now; a new code must be requested.
-    expect((await post('/api/auth/verify', { email: HORIZON_LEADER, code: real })).status).toBe(400);
+  it("refuses a leader's email on another firm's link", async () => {
+    expect((await post('/api/auth/email', { email: EXAMPLE_LEADER, firmToken: HORIZON })).status).toBe(400);
   });
 
-  it('a code works once only', async () => {
-    await post('/api/auth/request-code', { email: HORIZON_LEADER });
-    const code = lastCodeFor(HORIZON_LEADER)!;
-    expect((await post('/api/auth/verify', { email: HORIZON_LEADER, code })).status).toBe(200);
-    expect((await post('/api/auth/verify', { email: HORIZON_LEADER, code })).status).toBe(400);
+  it('refuses emails that are not on the list, and requests without a link', async () => {
+    expect((await post('/api/auth/email', { email: 'stranger@nowhere.test', firmToken: EXAMPLE })).status).toBe(400);
+    expect((await post('/api/auth/email', { email: EXAMPLE_LEADER, firmToken: '' })).status).toBe(400);
+    expect((await post('/api/auth/email', { email: EXAMPLE_LEADER, firmToken: 'guessed-token' })).status).toBe(400);
+  });
+
+  it('never lets an admin email in through a partner link', async () => {
+    expect((await post('/api/auth/email', { email: ADMIN, firmToken: EXAMPLE })).status).toBe(400);
+  });
+
+  it('admin needs the right password; leaders cannot use the admin form', async () => {
+    expect((await post('/api/auth/admin', { email: ADMIN, password: 'wrong' })).status).toBe(400);
+    expect((await post('/api/auth/admin', { email: EXAMPLE_LEADER, password: ADMIN_PASSWORD })).status).toBe(400);
+    const { home } = await signInAdmin();
+    expect(home).toBe('/admin');
   });
 
   it('refuses POSTs without the anti-forgery header', async () => {
-    const res = await fetch(base + '/api/auth/request-code', {
+    const res = await fetch(base + '/api/auth/email', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: EXAMPLE_LEADER }),
+      body: JSON.stringify({ email: EXAMPLE_LEADER, firmToken: EXAMPLE }),
     });
     expect(res.status).toBe(403);
   });
@@ -168,7 +165,7 @@ describe('firm isolation', () => {
   });
 
   it('signs a revoked user out on their next request', async () => {
-    const { cookie } = await signIn('coo@example-capital.demo'); // invited → active on first sign-in
+    const { cookie } = await signIn('coo@example-capital.demo', EXAMPLE); // invited → active on first sign-in
     expect((await get(`/api/reports/${EXAMPLE}`, cookie)).status).toBe(200);
     db.prepare("update users set access_status = 'revoked' where email = 'coo@example-capital.demo'").run();
     expect((await get(`/api/reports/${EXAMPLE}`, cookie)).status).toBe(401);
@@ -184,7 +181,7 @@ describe('firm isolation', () => {
 describe('admin', () => {
   let admin = '';
   beforeAll(async () => {
-    admin = (await signIn(ADMIN)).cookie;
+    admin = (await signInAdmin()).cookie;
   });
 
   it('can open any firm, including draft checkpoints', async () => {
@@ -223,6 +220,49 @@ describe('admin', () => {
   it('keeps bootstrap admins when the recipients list is replaced', async () => {
     const csv = 'user_id,email,name,firm_id,role,access_status\nu1,new.leader@example-capital.demo,New,firm-example-capital,firm_leader,invited\n';
     await post('/api/admin/import/users', csv, admin, 'text/csv');
+    // The admin stays signed in even though their user row was replaced.
     expect((await get('/api/admin/dataset', admin)).status).toBe(200);
+  });
+
+  it('imports the whole data template workbook in one upload', async () => {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    const fellows = wb.addWorksheet('fellows');
+    fellows.addRow(['fellow_id', 'first_name', 'last_name', 'role', 'firm_id', 'cohort_id', 'report_token']);
+    for (const f of sampleDataset.fellows)
+      fellows.addRow([f.id, f.id === 'fellow-amara-okafor' ? 'Amy' : f.firstName, f.lastName, f.role ?? '', f.firmId, f.cohortId, f.reportToken]);
+    const cap = wb.addWorksheet('capstone');
+    cap.addRow(['fellow_id', 'recorded_at', 'submitted', 'submission_date', 'submission_deadline', 'submitted_on_time', 'assessment_status']);
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+
+    const dry = await fetch(base + '/api/admin/import-workbook?dryRun=1', {
+      method: 'POST',
+      headers: { 'content-type': 'application/octet-stream', 'x-ivc': '1', cookie: admin },
+      body: buf,
+    });
+    const dryBody = (await dry.json()) as { applied: boolean; tables: Array<{ table: string; count: number }> };
+    expect(dryBody.applied).toBe(false);
+    expect(dryBody.tables.map((t) => [t.table, t.count])).toEqual([['fellows', 20], ['capstones', 0]]);
+
+    const res = await fetch(base + '/api/admin/import-workbook', {
+      method: 'POST',
+      headers: { 'content-type': 'application/octet-stream', 'x-ivc': '1', cookie: admin },
+      body: buf,
+    });
+    expect(((await res.json()) as { applied: boolean }).applied).toBe(true);
+    const report = (await (await get(`/api/reports/${HORIZON}/${AMARA}`, admin)).json()) as {
+      metrics: { fellow: { firstName: string }; capstone: { state: string } };
+    };
+    expect(report.metrics.fellow.firstName).toBe('Amy');
+    expect(report.metrics.capstone.state).toBe('no_record'); // capstone tab was empty → table cleared
+  });
+
+  it('keeps existing report links when firms are re-imported without tokens', async () => {
+    const csv =
+      'firm_id,firm_name,cohort_id,logo_url,report_token,report_enabled\n' +
+      sampleDataset.firms.map((f) => [f.id, f.name, f.cohortId, '', '', f.reportEnabled === false ? 'no' : 'yes'].join(',')).join('\n');
+    const r = (await (await post('/api/admin/import/firms', csv, admin, 'text/csv')).json()) as { applied: boolean };
+    expect(r.applied).toBe(true);
+    expect((await get(`/api/reports/${EXAMPLE}`, admin)).status).toBe(200);
   });
 });

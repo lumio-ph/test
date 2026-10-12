@@ -1,81 +1,58 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import logoInverse from "../assets/included-vc-logo-inverse.png";
-import mark from "../assets/africa-mark.png";
-import { authApi } from "../data/api";
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import logoInverse from '../assets/included-vc-logo-inverse.png';
+import mark from '../assets/africa-mark.png';
+import { authApi, type SignInError } from '../data/api';
 
 /** Only same-site paths are allowed as a post-sign-in destination. */
-const safeNext = (next: string | null) =>
-  next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//') ? next : null);
+
+/** The firm link a partner arrived on, e.g. /r/k7Qm2xP9aRf4/... → k7Qm2xP9aRf4 */
+const firmTokenFrom = (next: string | null) => next?.match(/^\/r\/([^/?#]+)/)?.[1] ?? null;
+
+const partnerMessages: Record<SignInError, string> = {
+  not_authorised:
+    "This email isn't on the list for this report. Use the address your invitation was sent to, or contact the Included VC programme team.",
+  rate_limited: 'Too many attempts. Please wait 15 minutes and try again.',
+  invalid_email: 'Enter a full email address, like name@firm.com.',
+  admin_not_configured: 'Something went wrong. Please try again.',
+  failed: 'Something went wrong. Please try again in a minute.',
+};
+
+const adminMessages: Record<SignInError, string> = {
+  not_authorised: "That email and password don't match an admin account.",
+  rate_limited: 'Too many attempts. Please wait 15 minutes and try again.',
+  invalid_email: 'Enter a full email address.',
+  admin_not_configured: 'Admin sign-in is not switched on yet. Set ADMIN_PASSWORD in the hosting settings (Render → Environment).',
+  failed: 'Something went wrong. Please try again in a minute.',
+};
 
 export function SignInPage() {
   const [params] = useSearchParams();
-  const next = safeNext(params.get("next"));
+  const next = safeNext(params.get('next'));
+  const firmToken = firmTokenFrom(next);
+  const mode: 'partner' | 'admin' = firmToken ? 'partner' : 'admin';
   const navigate = useNavigate();
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{
-    tone: "error" | "info";
-    text: string;
-  } | null>(null);
-  const codeRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Sign in · Included VC progress reports";
+    document.title = 'Sign in · Included VC progress reports';
     authApi.me().then((me) => {
-      if (me.user) navigate(next ?? me.home ?? "/", { replace: true });
+      if (me.user) navigate(next ?? me.home ?? '/', { replace: true });
     });
   }, [navigate, next]);
 
-  useEffect(() => {
-    if (step === "code") codeRef.current?.focus();
-  }, [step]);
-
-  const sendCode = async (e?: FormEvent) => {
-    e?.preventDefault();
-    setBusy(true);
-    setMessage(null);
-    const r = await authApi.requestCode(email);
-    setBusy(false);
-    if (r === "sent") {
-      setStep("code");
-      setMessage({
-        tone: "info",
-        text: `If ${email.trim()} has access to a report, a 6-digit code is on its way. It expires in 10 minutes.`,
-      });
-    } else if (r === "rate_limited")
-      setMessage({
-        tone: "error",
-        text: "Too many codes requested. Please wait 15 minutes and try again.",
-      });
-    else if (r === "invalid")
-      setMessage({
-        tone: "error",
-        text: "Enter a full email address, like name@firm.com.",
-      });
-    else
-      setMessage({
-        tone: "error",
-        text: "We couldn't send the email just now. Please try again in a minute.",
-      });
-  };
-
-  const verify = async (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setMessage(null);
-    const r = await authApi.verify(email, code);
+    setError(null);
+    const r = mode === 'partner' ? await authApi.signInEmail(email, firmToken!) : await authApi.signInAdmin(email, password);
     setBusy(false);
-    if (r) navigate(next ?? r.home, { replace: true });
-    else {
-      setMessage({
-        tone: "error",
-        text: "That code didn't work. Check you're using the latest email, or request a new code. Codes expire after 10 minutes or 5 attempts.",
-      });
-      setCode("");
-    }
+    if ('home' in r) navigate(next ?? r.home, { replace: true });
+    else setError((mode === 'partner' ? partnerMessages : adminMessages)[r.error]);
   };
 
   return (
@@ -85,119 +62,81 @@ export function SignInPage() {
           <img className="s-mark" src={mark} alt="" aria-hidden="true" />
           <img className="s-logo" src={logoInverse} alt="Included VC Africa" />
           <div>
-            <div className="r-rule" style={{ background: "var(--gold)" }} />
-            <div
-              className="r-eyebrow r-eyebrow--gold"
-              style={{ marginBottom: 18 }}
-            >
-              Investment Cohort · Progress reports
+            <div className="r-rule" style={{ background: 'var(--gold)' }} />
+            <div className="r-eyebrow r-eyebrow--gold" style={{ marginBottom: 18 }}>
+              Progress reports
             </div>
             <h1 className="s-title">Your fellows' progress, privately.</h1>
             <p className="s-lede">
-              Each report is prepared for the leadership of one sponsoring firm
-              and opens only for the people your firm has authorised.
+              Each report is prepared for the leadership of one sponsoring firm and opens only for the people your firm
+              has authorised.
             </p>
           </div>
         </aside>
 
         <main className="s-main">
           <div className="s-card">
-            {step === "email" ? (
-              <form onSubmit={sendCode} noValidate>
-                <h2 className="r-h3 s-h">Sign in</h2>
-                <p className="s-help">
-                  Enter the email address your report invitation was sent to.
-                  We'll email you a one-time code.
+            <form onSubmit={submit} noValidate>
+              {mode === 'partner' ? (
+                <>
+                  <h2 className="r-h3 s-h">Open your report</h2>
+                  <p className="s-help">Enter the email address your report invitation was sent to.</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="r-h3 s-h">Included VC admin</h2>
+                  <p className="s-help">
+                    Sign in with your admin email and password. Partners: please open the link in your invitation email
+                    instead.
+                  </p>
+                </>
+              )}
+              <label className="s-label" htmlFor="email">
+                {mode === 'partner' ? 'Work email' : 'Admin email'}
+              </label>
+              <input
+                id="email"
+                className="s-input"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={mode === 'partner' ? 'name@firm.com' : 'ops@included.vc'}
+                autoFocus
+              />
+              {mode === 'admin' && (
+                <>
+                  <label className="s-label" htmlFor="password" style={{ marginTop: 18 }}>
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    className="s-input"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </>
+              )}
+              {error && (
+                <p className="s-msg s-msg--error" role="alert">
+                  {error}
                 </p>
-                <label className="s-label" htmlFor="email">
-                  Work email
-                </label>
-                <input
-                  id="email"
-                  className="s-input"
-                  type="email"
-                  autoComplete="email"
-                  inputMode="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@firm.com"
-                  autoFocus
-                />
-                {message && (
-                  <p className={`s-msg s-msg--${message.tone}`} role="alert">
-                    {message.text}
-                  </p>
-                )}
-                <button
-                  className="r-button s-submit"
-                  type="submit"
-                  disabled={busy || !email.trim()}
-                >
-                  {busy ? "Sending…" : "Email me a code"}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={verify} noValidate>
-                <h2 className="r-h3 s-h">Check your email</h2>
-                {message && (
-                  <p
-                    className={`s-msg s-msg--${message.tone}`}
-                    role={message.tone === "error" ? "alert" : "status"}
-                  >
-                    {message.text}
-                  </p>
-                )}
-                <label className="s-label" htmlFor="code">
-                  6-digit code
-                </label>
-                <input
-                  id="code"
-                  ref={codeRef}
-                  className="s-input s-code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  value={code}
-                  onChange={(e) =>
-                    setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  placeholder="••••••"
-                />
-                <button
-                  className="r-button s-submit"
-                  type="submit"
-                  disabled={busy || code.length !== 6}
-                >
-                  {busy ? "Checking…" : "Sign in"}
-                </button>
-                <div className="s-alt">
-                  <button
-                    type="button"
-                    onClick={() => sendCode()}
-                    disabled={busy}
-                  >
-                    Send a new code
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("email");
-                      setCode("");
-                      setMessage(null);
-                    }}
-                  >
-                    Use a different email
-                  </button>
-                </div>
-              </form>
-            )}
+              )}
+              <button
+                className="r-button s-submit"
+                type="submit"
+                disabled={busy || !email.trim() || (mode === 'admin' && !password)}
+              >
+                {busy ? 'Checking…' : mode === 'partner' ? 'Open report' : 'Sign in'}
+              </button>
+            </form>
           </div>
-          <p className="s-foot">
-            No password needed. Trouble signing in? Contact the Included VC
-            programme team.
-          </p>
+          <p className="s-foot">Trouble getting in? Contact the Included VC programme team.</p>
         </main>
       </div>
     </div>

@@ -289,6 +289,12 @@
   min-width: 0;
 }
 
+.r-header__for > span:last-child {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .r-header__for img {
   height: 26px;
   width: auto;
@@ -1439,6 +1445,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
+}
+
+.r-step__words--one {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 820px;
 }
 
 .r-word {

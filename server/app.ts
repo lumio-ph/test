@@ -16,9 +16,10 @@ import path from 'node:path';
 import { importCsv, tableSpecs } from '../src/data/importSpec';
 import { InMemoryRepository } from '../src/data/repository';
 import { validateDataset } from '../src/data/validate';
-import { Auth, type SessionUser } from './auth';
+import { Auth, type SessionUser, type SignInResult } from './auth';
 import { audit, ensureAdmins, loadDataset, replaceTable, setMeta, tx, type DB } from './db';
 import { reportInvitationEmail, type Mailer } from './mail';
+import { readWorkbook } from './workbook';
 
 export interface AppOptions {
   db: DB;
@@ -26,6 +27,7 @@ export interface AppOptions {
   secret: string;
   baseUrl: string; // e.g. https://reports.included.vc
   adminEmails: string[];
+  adminPassword?: string;
   staticDir?: string;
   secureCookies: boolean;
 }
@@ -50,7 +52,7 @@ function readCookie(req: Request, name: string) {
 
 export function createApp(opts: AppOptions) {
   const { db, mailer } = opts;
-  const auth = new Auth(db, opts.secret, mailer);
+  const auth = new Auth(db, opts.secret, opts.adminPassword);
   const repo = new InMemoryRepository(() => loadDataset(db));
   const app = express();
   app.disable('x-powered-by');
@@ -96,21 +98,11 @@ export function createApp(opts: AppOptions) {
 
   /* ---------- auth ---------- */
 
-  api.post('/auth/request-code', async (req, res) => {
-    const email = String(req.body?.email ?? '');
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return res.status(400).json({ error: 'invalid_email' });
-    try {
-      const r = await auth.requestCode(email, req.ip ?? 'unknown');
-      if (!r.ok) return res.status(429).json({ error: 'rate_limited' });
-      res.json({ ok: true });
-    } catch {
-      res.status(502).json({ error: 'email_failed' });
+  const finishSignIn = (res: Response, r: SignInResult) => {
+    if (!r.ok) {
+      const status = r.reason === 'rate_limited' ? 429 : r.reason === 'admin_not_configured' ? 503 : 400;
+      return res.status(status).json({ error: r.reason });
     }
-  });
-
-  api.post('/auth/verify', (req, res) => {
-    const r = auth.verifyCode(String(req.body?.email ?? ''), String(req.body?.code ?? ''));
-    if (!r) return res.status(400).json({ error: 'invalid_code' });
     res.cookie(COOKIE, r.token, {
       httpOnly: true,
       sameSite: 'lax',
@@ -119,6 +111,20 @@ export function createApp(opts: AppOptions) {
       path: '/',
     });
     res.json({ ok: true, home: homeFor(r.user) });
+  };
+
+  /** Partner: email + the firm link they arrived on. */
+  api.post('/auth/email', (req, res) => {
+    const email = String(req.body?.email ?? '');
+    const firmToken = String(req.body?.firmToken ?? '');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return res.status(400).json({ error: 'invalid_email' });
+    if (!firmToken) return res.status(400).json({ error: 'link_required' });
+    finishSignIn(res, auth.signInWithEmail(email, firmToken, req.ip ?? 'unknown'));
+  });
+
+  /** Admin: email + ADMIN_PASSWORD. */
+  api.post('/auth/admin', (req, res) => {
+    finishSignIn(res, auth.signInAdmin(String(req.body?.email ?? ''), String(req.body?.password ?? ''), req.ip ?? 'unknown'));
   });
 
   api.post('/auth/sign-out', (req, res) => {
@@ -144,6 +150,7 @@ export function createApp(opts: AppOptions) {
       user: { email: req.user.email, name: req.user.name, role: req.user.role, firmName: firm?.name ?? null },
       home: homeFor(req.user),
       mailLive: mailer.live,
+      adminConfigured: Boolean(opts.adminPassword),
     });
   });
 
@@ -192,11 +199,20 @@ export function createApp(opts: AppOptions) {
 
   admin.get('/dataset', (_req, res) => res.json(loadDataset(db)));
 
+  /** Current link tokens by firm/fellow id, so re-imports keep sent links working. */
+  const existingTokens = () =>
+    new Map(
+      (db.prepare('select id, report_token from firms union all select id, report_token from fellows').all() as Array<{
+        id: string;
+        report_token: string;
+      }>).map((r) => [r.id, r.report_token]),
+    );
+
   admin.post('/import/:table', (req, res) => {
     const spec = tableSpecs.find((s) => s.key === req.params.table);
     if (!spec) return res.status(404).json({ error: 'unknown_table' });
     if (typeof req.body !== 'string') return res.status(400).json({ error: 'send text/csv' });
-    const parsed = importCsv(spec, req.body);
+    const parsed = importCsv(spec, req.body, existingTokens());
     if (parsed.fatal || req.query.dryRun === '1') return res.json({ applied: false, ...parsed, count: parsed.items.length, items: undefined });
     tx(db, () => {
       replaceTable(db, spec.key, parsed.items as never);
@@ -208,6 +224,39 @@ export function createApp(opts: AppOptions) {
     const checks = validateDataset(loadDataset(db));
     res.json({ applied: true, count: parsed.items.length, issues: parsed.issues, checks });
   });
+
+  /** Whole data template (.xlsx) in one upload. Tabs present replace their tables. */
+  admin.post(
+    '/import-workbook',
+    express.raw({ type: () => true, limit: '30mb' }),
+    async (req, res) => {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: 'send the .xlsx file' });
+      let read: Awaited<ReturnType<typeof readWorkbook>>;
+      try {
+        read = await readWorkbook(req.body, existingTokens());
+      } catch {
+        return res.status(400).json({ error: 'not_a_workbook' });
+      }
+      const summary = read.tables.map((t) => ({
+        table: t.spec.key,
+        title: t.spec.title,
+        count: t.items.length,
+        fatal: t.fatal,
+        issues: t.issues.slice(0, 200),
+        issueCount: t.issues.length,
+      }));
+      const fatal = read.tables.some((t) => t.fatal);
+      if (fatal || req.query.dryRun === '1') return res.json({ applied: false, fatal, tables: summary, missingTabs: read.missingTabs });
+      tx(db, () => {
+        for (const t of read.tables) replaceTable(db, t.spec.key, t.items as never);
+        ensureAdmins(db, opts.adminEmails);
+        setMeta(db, 'label', 'Live data');
+        setMeta(db, 'is_sample', '0');
+      });
+      audit(db, 'data_imported', req.user, `Workbook: ${summary.map((t) => `${t.title} ${t.count}`).join(', ')}`);
+      res.json({ applied: true, fatal: false, tables: summary, missingTabs: read.missingTabs, checks: validateDataset(loadDataset(db)) });
+    },
+  );
 
   admin.post('/checkpoints/:id/status', (req, res) => {
     const status = req.body?.status === 'published' ? 'published' : 'draft';

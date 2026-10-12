@@ -320,24 +320,24 @@ export function LearningJourney({ model }: { model: FellowReportModel }) {
                   </div>
 
                   {l.feedback === 'submitted' ? (
-                    <div className="r-step__words">
-                      <div className="r-word">
-                        <div className="r-word__label">What I learned</div>
-                        {l.whatILearned ? (
-                          <p className="r-word__text">{l.whatILearned}</p>
-                        ) : (
-                          <p className="r-word__none">No response given to this question.</p>
+                    l.whatILearned || l.whatIllApply ? (
+                      <div className={`r-step__words ${l.whatILearned && l.whatIllApply ? '' : 'r-step__words--one'}`}>
+                        {l.whatILearned && (
+                          <div className="r-word">
+                            <div className="r-word__label">What I learned</div>
+                            <p className="r-word__text">{l.whatILearned}</p>
+                          </div>
+                        )}
+                        {l.whatIllApply && (
+                          <div className="r-word r-word--apply">
+                            <div className="r-word__label">What I'll apply</div>
+                            <p className="r-word__text">{l.whatIllApply}</p>
+                          </div>
                         )}
                       </div>
-                      <div className="r-word r-word--apply">
-                        <div className="r-word__label">What I'll apply</div>
-                        {l.whatIllApply ? (
-                          <p className="r-word__text">{l.whatIllApply}</p>
-                        ) : (
-                          <p className="r-word__none">No response given to this question.</p>
-                        )}
-                      </div>
-                    </div>
+                    ) : (
+                      <p className="r-step__quiet">Feedback submitted, without a written reflection.</p>
+                    )
                   ) : l.feedback === 'not_submitted' ? (
                     <p className="r-step__quiet">{name} attended this session. No written feedback was submitted.</p>
                   ) : (

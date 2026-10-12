@@ -3,6 +3,7 @@ import { DEMO } from '../config';
 import { useRepository } from '../data/DataProvider';
 import { tableSpecs, templateCsv, type ImportIssue, type TableSpec } from '../data/importSpec';
 import type { Dataset } from '../data/types';
+import type { WorkbookImportResult } from '../data/adminActions';
 
 function download(name: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
@@ -71,6 +72,11 @@ export function ImportTab({ data }: { data: Dataset }) {
           : ' Changes are saved and appear in every report straight away.'}
       </p>
 
+      {admin.importWorkbook && <WorkbookImport />}
+
+      <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, margin: '28px 0 6px' }}>
+        Or one table at a time (CSV)
+      </h3>
       <div className="a-row" style={{ marginBottom: 20 }}>
         <button className="a-btn" onClick={() => tableSpecs.forEach((s) => download(s.file, templateCsv(s, data)))}>
           Download all CSVs
@@ -151,6 +157,146 @@ export function ImportTab({ data }: { data: Dataset }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Upload the whole filled-in data template (.xlsx) at once. */
+function WorkbookImport() {
+  const { admin, refresh } = useRepository();
+  const [file, setFile] = useState<File | null>(null);
+  const [check, setCheck] = useState<WorkbookImportResult | null>(null);
+  const [done, setDone] = useState<WorkbookImportResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const choose = async (f: File | undefined) => {
+    if (!f) return;
+    setFile(f);
+    setDone(null);
+    setError(null);
+    setBusy(true);
+    try {
+      setCheck(await admin.importWorkbook!(f, true));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setCheck(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const r = await admin.importWorkbook!(file, false);
+      setDone(r);
+      setCheck(null);
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const result = done ?? check;
+  return (
+    <div className="a-box" style={{ borderColor: 'var(--kelly)' }}>
+      <h3>Upload the whole data workbook</h3>
+      <p>
+        Upload the filled-in data template (.xlsx). Every tab is checked first and nothing changes until you press Save.
+        Each tab in the file replaces that table; tabs you remove from the file are left as they are.
+      </p>
+      <div className="a-row">
+        <label className="a-btn a-btn--primary" style={{ cursor: 'pointer' }}>
+          {busy && !check ? 'Checking…' : 'Choose workbook (.xlsx)'}
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            hidden
+            onChange={(e) => {
+              choose(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        {file && <span className="r-mono">{file.name}</span>}
+      </div>
+      {error && (
+        <div className="a-issue">
+          <span className="a-tag a-tag--error">error</span> {error}
+        </div>
+      )}
+      {result && (
+        <div style={{ marginTop: 14 }}>
+          {done && (
+            <div className="a-issue">
+              <span className="a-tag a-tag--ok">saved</span> The workbook is saved. Every report now uses this data.
+            </div>
+          )}
+          <div className="a-scroll">
+            <table className="a-table">
+              <thead>
+                <tr>
+                  <th>Tab</th>
+                  <th style={{ textAlign: 'right' }}>Rows</th>
+                  <th>Check</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.tables.map((t) => (
+                  <tr key={t.table}>
+                    <td>{t.title}</td>
+                    <td className="num">{t.count}</td>
+                    <td>
+                      {t.fatal ? (
+                        <span className="a-tag a-tag--error">cannot import</span>
+                      ) : t.issueCount ? (
+                        <details>
+                          <summary style={{ cursor: 'pointer' }}>
+                            <span className="a-tag a-tag--warning">{t.issueCount} to review</span>
+                          </summary>
+                          {t.issues.map((i, n) => (
+                            <div key={n} className="a-issue">
+                              <span className="r-mono">{i.row ? `row ${i.row + 1}` : 'tab'}</span> {i.message}
+                            </div>
+                          ))}
+                          {t.issueCount > t.issues.length && <p className="r-mono">…and {t.issueCount - t.issues.length} more</p>}
+                        </details>
+                      ) : (
+                        <span className="a-tag a-tag--ok">ok</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {result.missingTabs.length > 0 && (
+            <p className="r-mono" style={{ marginTop: 10 }}>
+              Not in this file (left unchanged): {result.missingTabs.join(', ')}
+            </p>
+          )}
+          {check && !check.fatal && (
+            <div className="a-row" style={{ marginTop: 14 }}>
+              <button className="a-btn a-btn--primary" onClick={save} disabled={busy}>
+                {busy ? 'Saving…' : 'Save to database'}
+              </button>
+              <button className="a-btn" onClick={() => (setCheck(null), setFile(null))}>
+                Cancel
+              </button>
+            </div>
+          )}
+          {done?.checks && done.checks.length > 0 && (
+            <p style={{ marginTop: 12 }}>
+              {done.checks.filter((c) => c.level === 'error').length} errors and{' '}
+              {done.checks.filter((c) => c.level === 'warning').length} warnings are listed on the Data & checks tab.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

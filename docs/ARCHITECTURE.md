@@ -49,7 +49,7 @@ returns only that one view-model.
 | `/r/{firmToken}` | Company report (latest published checkpoint) |
 | `/r/{firmToken}/{fellowToken}` | Individual fellow report |
 | `…?cp={checkpointId}` | A specific (historical) checkpoint |
-| `/sign-in` | Email + one-time code |
+| `/sign-in` | Partners: email (arriving from their firm link). Admins: email + password |
 | `/admin` | Internal admin (admins only) |
 
 The self-contained demo (`npm run build:single`) uses the same routes behind
@@ -60,13 +60,16 @@ The self-contained demo (`npm run build:single`) uses the same routes behind
 Enforced by the server on every request (`server/app.ts`), covered by
 `server/app.test.ts`:
 
-- **Sign-in**: 6-digit code emailed to an address on `authorised_users`.
-  Codes expire after 10 minutes and lock after 5 wrong attempts. Requests are
-  rate-limited per email and per IP. Unknown emails get the same response and
-  no email, so the form can't be used to find out who has access.
+- **Sign-in (partners)**: email only, entered on the firm's private link.
+  Access needs both the link token and an email on that firm's recipient list
+  (`authorised_users`, role `firm_leader`). No code or password, by design
+  choice: whoever holds a forwarded link and knows a listed email can open it.
+  Attempts are rate-limited per IP and per link, and refusals are logged.
+- **Sign-in (admins)**: an `ADMIN_EMAILS` address plus `ADMIN_PASSWORD`.
+  Admin sign-in is off until the password is set.
 - **Sessions**: random 256-bit token in an HttpOnly, SameSite=Lax cookie
-  (Secure in production), valid 14 days. Codes and tokens are stored only as
-  keyed hashes. Revoking a user ends their sessions on the next request.
+  (Secure in production), valid 14 days, stored only as a keyed hash and tied
+  to the user's email (so re-uploading recipients never signs anyone out). Revoking a user ends their sessions on the next request.
 - **Firm isolation**: a firm leader gets a report only when the link's firm
   is their own firm. Another firm's link, another firm's fellow under their
   own firm link, or a firm without reports all return the same 404 as a

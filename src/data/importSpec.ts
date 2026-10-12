@@ -166,11 +166,8 @@ const firms: TableSpec<Firm> = {
     const name = req(c, 'firm_name');
     const cohortId = req(c, 'cohort_id');
     if (!id || !name || !cohortId) return null;
-    let token = str(c, 'report_token');
-    if (!token) {
-      token = newToken();
-      issues.push({ row, message: `No report_token for ${name}; generated ${token}. Save it back to the sheet.` });
-    }
+    // Blank = keep this firm's existing link, or create one (see importRecords).
+    const token = str(c, 'report_token');
     return {
       id,
       name,
@@ -205,11 +202,7 @@ const fellows: TableSpec<Fellow> = {
     const firmId = req(c, 'firm_id');
     const cohortId = req(c, 'cohort_id');
     if (!id || !firstName || !lastName || !firmId || !cohortId) return null;
-    let token = str(c, 'report_token');
-    if (!token) {
-      token = newToken();
-      issues.push({ row, message: `No report_token for ${firstName} ${lastName}; generated ${token}.` });
-    }
+    const token = str(c, 'report_token');
     return { id, firstName, lastName, role: str(c, 'role') || undefined, firmId, cohortId, reportToken: token };
   },
 };
@@ -279,6 +272,7 @@ const sessionRecords: TableSpec<SessionRecord> = {
     const fellowId = req(c, 'fellow_id');
     const sessionId = req(c, 'session_id');
     if (!fellowId || !sessionId) return null;
+    if (!str(c, 'attended')) issues.push({ row, message: `attended is blank for ${fellowId} / ${sessionId}: counted as not attended` });
     const attended = bool(c, 'attended');
     const feedbackSubmitted = bool(c, 'feedback_submitted');
     if (feedbackSubmitted && !attended)
@@ -435,8 +429,23 @@ export function templateCsv(spec: TableSpec, ds: Dataset) {
   );
 }
 
-export function importCsv(spec: TableSpec, text: string) {
+export function importCsv(spec: TableSpec, text: string, existingTokens?: Map<string, string>) {
   const { header, records } = csvObjects(text);
+  return importRecords(spec, header, records, existingTokens);
+}
+
+/**
+ * Validates already-split rows (from a CSV or a workbook tab). Header names
+ * are lower-case. Firms and fellows with a blank report_token keep the link
+ * they already have (from `existingTokens`, keyed by id) or get a new one, so
+ * re-uploading a sheet never breaks links that were already sent.
+ */
+export function importRecords(
+  spec: TableSpec,
+  header: string[],
+  records: Array<Record<string, string>>,
+  existingTokens: Map<string, string> = new Map(),
+) {
   const issues: ImportIssue[] = [];
   const missingCols = spec.columns.filter((c) => c.required && !header.includes(c.name)).map((c) => c.name);
   if (missingCols.length) {
@@ -449,5 +458,10 @@ export function importCsv(spec: TableSpec, text: string) {
   const items = records
     .map((rec, i) => spec.parse(rec, i + 1, issues))
     .filter((x): x is NonNullable<typeof x> => x !== null);
+  if (spec.key === 'firms' || spec.key === 'fellows') {
+    for (const item of items as Array<{ id: string; reportToken: string }>) {
+      if (!item.reportToken) item.reportToken = existingTokens.get(item.id) ?? newToken();
+    }
+  }
   return { items, issues, fatal: false };
 }

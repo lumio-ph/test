@@ -1,7 +1,7 @@
 /**
  * SQLite storage (Node's built-in node:sqlite — no native build step).
- * Report tables mirror src/data/types.ts; auth tables hold sign-in codes,
- * sessions, the email outbox and an audit log.
+ * Report tables mirror src/data/types.ts; other tables hold sign-in sessions,
+ * rate limits, the email outbox and an audit log.
  */
 import { createRequire } from 'node:module';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
@@ -58,6 +58,8 @@ create table if not exists users (
 create table if not exists login_codes (
   email text primary key collate nocase, code_hash text not null,
   expires_at integer not null, attempts integer not null default 0);
+-- user_id holds the user's email, so re-uploading the recipient list
+-- (which replaces user rows) never signs anyone out.
 create table if not exists auth_sessions (
   token_hash text primary key, user_id text not null,
   created_at integer not null, expires_at integer not null);

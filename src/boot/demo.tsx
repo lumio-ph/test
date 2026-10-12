@@ -11,7 +11,8 @@ const repo = new InMemoryRepository(datasetStore.get);
 
 const admin: AdminActions = {
   async importTable(spec, csv, dryRun) {
-    const r = importCsv(spec, csv);
+    const d = datasetStore.get();
+    const r = importCsv(spec, csv, new Map([...d.firms, ...d.fellows].map((x) => [x.id, x.reportToken])));
     if (r.fatal || dryRun) return { applied: false, fatal: r.fatal, count: r.items.length, issues: r.issues };
     datasetStore.replace({ ...datasetStore.get(), label: 'Imported data (this browser tab only)', [spec.key]: r.items });
     return { applied: true, count: r.items.length, issues: r.issues, checks: validateDataset(datasetStore.get()) };

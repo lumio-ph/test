@@ -8,7 +8,6 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 
 SRC = 'data-templates'
-OUT = sys.argv[1]
 FEATURED = {'fellow-alexandra-smith', 'fellow-daniel-mensah', 'fellow-amara-okafor'}
 FIRMS = {'firm-example-capital', 'firm-horizon-ventures'}
 
@@ -94,138 +93,153 @@ def rows(tab):
     }.get(tab, lambda x: True)
     return [x for x in r if keep(x)]
 
-wb = Workbook()
-start = wb.active; start.title = 'Start here'
 
-def todate(v):
-    return datetime.datetime.strptime(v, '%Y-%m-%d') if v else None
+def build(OUT, rows, flags=None, examples=True, intro=None):
+    """rows(tab) -> list of dicts keyed by column name; flags[(tab, i)] = {column: note}."""
+    wb = Workbook()
+    start = wb.active; start.title = 'Start here'
 
-for tab, desc, cols in TABLES:
-    ws = wb.create_sheet(tab)
-    ws.sheet_properties.tabColor = KELLY if tab != 'authorised_users' else GREY
-    for i, (name, req, kind, helptext) in enumerate(cols, 1):
-        c = ws.cell(row=1, column=i, value=name)
-        c.font = F(bold=True, color='FFFFFF' if req else INK, size=10)
-        c.fill = PatternFill('solid', fgColor=KELLY if req else 'E5E5E5')
-        c.alignment = Alignment(vertical='center')
-        c.comment = Comment(('REQUIRED. ' if req else 'Optional. ') + helptext, 'Included VC')
-        width = 60 if kind == 'longtext' else 14 if kind in ('date', 'yesno', 'int', 'num') else max(16, len(name) + 4)
-        if name in ('session_title', 'firm_name', 'email', 'logo_url', 'session_ids'): width = 36
-        ws.column_dimensions[get_column_letter(i)].width = width
-        col = get_column_letter(i)
-        rng = f'{col}2:{col}2000'
-        dv = None
-        if kind == 'yesno':
-            dv = DataValidation(type='list', formula1='"yes,no"', allow_blank=True)
-        elif kind.startswith('enum:'):
-            dv = DataValidation(type='list', formula1='"' + kind[5:] + '"', allow_blank=True)
-        elif kind.startswith('ref:'):
-            dv = DataValidation(type='list', formula1=f"{kind[4:]}!$A$2:$A$2000", allow_blank=True)
-        elif kind == 'date':
-            dv = DataValidation(type='date', operator='greaterThan', formula1='DATE(2020,1,1)', allow_blank=True)
-            dv.error = 'Enter a date, e.g. 2026-08-17'
-        if dv:
-            dv.showErrorMessage = True
-            ws.add_data_validation(dv); dv.add(rng)
-        if kind == 'date':
-            for r in range(2, 2001): ws.cell(row=r, column=i).number_format = 'yyyy-mm-dd'
-        if kind == 'longtext':
-            for r in range(2, 2001): ws.cell(row=r, column=i).alignment = Alignment(wrap_text=True, vertical='top')
-    ws.freeze_panes = 'A2'
-    ws.row_dimensions[1].height = 22
-    for r, rec in enumerate(rows(tab), 2):
-        for i, (name, req, kind, _) in enumerate(cols, 1):
-            v = rec.get(name, '')
-            if name == 'facilitator' and 'demo' in v: v = ''
-            if name == 'report_token': v = ''
-            if kind == 'date': v = todate(v)
-            elif kind in ('int', 'num') and v != '': v = float(v) if '.' in v else int(v)
-            elif v == '': v = None
-            c = ws.cell(row=r, column=i, value=v)
-            c.font = F(size=10, italic=True, color='8A8A8A')
-            if kind == 'date': c.number_format = 'yyyy-mm-dd'
-            if kind == 'longtext': c.alignment = Alignment(wrap_text=True, vertical='top')
+    def todate(v):
+        return datetime.datetime.strptime(v, '%Y-%m-%d') if v else None
 
-# ---- Check tab: live figures from the data, for sanity-checking before import
-ck = wb.create_sheet('check_figures')
-ck.sheet_properties.tabColor = 'FFC400'
-ck['A1'] = 'Check figures — calculated from the tabs above. Not imported; for checking only.'
-ck['A1'].font = F(bold=True, size=12)
-ck['A2'] = 'Counts every session marked "held" and every attendance row, across the whole programme to date. The reports use the same rules per checkpoint.'
-ck['A2'].font = F(size=9, color=GREY)
-heads = ['fellow_id', 'Name', 'Firm', 'Sessions held', 'Attended', 'Attendance %', 'Feedback submitted', 'Feedback %', 'Missing attendance rows']
-for i, h in enumerate(heads, 1):
-    c = ck.cell(row=4, column=i, value=h); c.font = F(bold=True, color='FFFFFF', size=10); c.fill = PatternFill('solid', fgColor=INK)
-    ck.column_dimensions[get_column_letter(i)].width = [26, 22, 26, 14, 11, 14, 18, 12, 22][i - 1]
-N = 300
-for k in range(N):
-    r = 5 + k; fr = 2 + k
-    ck[f'A{r}'] = f'=IF(fellows!A{fr}="","",fellows!A{fr})'
-    ck[f'B{r}'] = f'=IF(A{r}="","",fellows!B{fr}&" "&fellows!C{fr})'
-    ck[f'C{r}'] = f'=IF(A{r}="","",IFERROR(INDEX(firms!$B$2:$B$2000,MATCH(fellows!E{fr},firms!$A$2:$A$2000,0)),"(unknown firm)"))'
-    ck[f'D{r}'] = f'=IF(A{r}="","",COUNTIFS(sessions!$B$2:$B$2000,fellows!F{fr},sessions!$F$2:$F$2000,"held")+COUNTIFS(sessions!$B$2:$B$2000,fellows!F{fr},sessions!$F$2:$F$2000,""))'
-    ck[f'E{r}'] = f'=IF(A{r}="","",COUNTIFS(attendance_feedback!$A$2:$A$2000,A{r},attendance_feedback!$C$2:$C$2000,"yes"))'
-    ck[f'F{r}'] = f'=IF(A{r}="","",IF(D{r}=0,"—",E{r}/D{r}))'
-    ck[f'G{r}'] = f'=IF(A{r}="","",COUNTIFS(attendance_feedback!$A$2:$A$2000,A{r},attendance_feedback!$C$2:$C$2000,"yes",attendance_feedback!$D$2:$D$2000,"yes"))'
-    ck[f'H{r}'] = f'=IF(A{r}="","",IF(E{r}=0,"—",G{r}/E{r}))'
-    ck[f'I{r}'] = f'=IF(A{r}="","",MAX(0,D{r}-COUNTIFS(attendance_feedback!$A$2:$A$2000,A{r})))'
-    for col in 'ABCDEFGHI':
-        ck[f'{col}{r}'].font = F(size=10)
-    ck[f'F{r}'].number_format = '0%'; ck[f'H{r}'].number_format = '0%'
-last = 5 + N - 1
-ck['K4'] = 'Cohort averages'; ck['K4'].font = F(bold=True, size=10)
-ck['K5'] = 'Attendance'; ck['L5'] = f'=IFERROR(AVERAGE(F5:F{last}),"—")'
-ck['K6'] = 'Feedback completion'; ck['L6'] = f'=IFERROR(AVERAGE(H5:H{last}),"—")'
-ck['K7'] = 'Average of each fellow\'s rate (fellows with no rate are left out).'
-for c in ('K5', 'K6', 'L5', 'L6'): ck[c].font = F(size=10)
-ck['K7'].font = F(size=9, color=GREY)
-ck['L5'].number_format = '0%'; ck['L6'].number_format = '0%'
-ck.column_dimensions['K'].width = 22; ck.column_dimensions['L'].width = 12
-ck.freeze_panes = 'A5'
+    for tab, desc, cols in TABLES:
+        ws = wb.create_sheet(tab)
+        ws.sheet_properties.tabColor = KELLY if tab != 'authorised_users' else GREY
+        for i, (name, req, kind, helptext) in enumerate(cols, 1):
+            c = ws.cell(row=1, column=i, value=name)
+            c.font = F(bold=True, color='FFFFFF' if req else INK, size=10)
+            c.fill = PatternFill('solid', fgColor=KELLY if req else 'E5E5E5')
+            c.alignment = Alignment(vertical='center')
+            c.comment = Comment(('REQUIRED. ' if req else 'Optional. ') + helptext, 'Included VC')
+            width = 60 if kind == 'longtext' else 14 if kind in ('date', 'yesno', 'int', 'num') else max(16, len(name) + 4)
+            if name in ('session_title', 'firm_name', 'email', 'logo_url', 'session_ids'): width = 36
+            ws.column_dimensions[get_column_letter(i)].width = width
+            col = get_column_letter(i)
+            rng = f'{col}2:{col}2000'
+            dv = None
+            if kind == 'yesno':
+                dv = DataValidation(type='list', formula1='"yes,no"', allow_blank=True)
+            elif kind.startswith('enum:'):
+                dv = DataValidation(type='list', formula1='"' + kind[5:] + '"', allow_blank=True)
+            elif kind.startswith('ref:'):
+                dv = DataValidation(type='list', formula1=f"{kind[4:]}!$A$2:$A$2000", allow_blank=True)
+            elif kind == 'date':
+                dv = DataValidation(type='date', operator='greaterThan', formula1='DATE(2020,1,1)', allow_blank=True)
+                dv.error = 'Enter a date, e.g. 2026-08-17'
+            if dv:
+                dv.showErrorMessage = True
+                ws.add_data_validation(dv); dv.add(rng)
+            if kind == 'date':
+                for r in range(2, 2001): ws.cell(row=r, column=i).number_format = 'yyyy-mm-dd'
+            if kind == 'longtext':
+                for r in range(2, 2001): ws.cell(row=r, column=i).alignment = Alignment(wrap_text=True, vertical='top')
+        ws.freeze_panes = 'A2'
+        ws.row_dimensions[1].height = 22
+        for r, rec in enumerate(rows(tab), 2):
+            flag_cols = (flags or {}).get((tab, r - 2), {})
+            for i, (name, req, kind, _) in enumerate(cols, 1):
+                v = rec.get(name, '')
+                if name == 'facilitator' and 'demo' in v: v = ''
+                if name == 'report_token': v = ''
+                if kind == 'date': v = todate(v)
+                elif kind in ('int', 'num') and v != '': v = float(v) if '.' in v else int(v)
+                elif v == '': v = None
+                c = ws.cell(row=r, column=i, value=v)
+                c.font = F(size=10, italic=True, color='8A8A8A') if examples else F(size=10)
+                if name in flag_cols:
+                    c.fill = PatternFill('solid', fgColor='FFE680')
+                    c.comment = Comment(flag_cols[name], 'Included VC')
+                if kind == 'date': c.number_format = 'yyyy-mm-dd'
+                if kind == 'longtext': c.alignment = Alignment(wrap_text=True, vertical='top')
 
-# ---- Start here
-s = start
-s.sheet_view.showGridLines = False
-s.column_dimensions['A'].width = 3; s.column_dimensions['B'].width = 26; s.column_dimensions['C'].width = 92
-s['B2'] = 'Investment Cohort progress reports — data template'; s['B2'].font = F(bold=True, size=16)
-s['B3'] = 'Fill in one tab per table. Each tab is saved as a CSV (File → Download → CSV, one tab at a time) and uploaded in the report admin.'
-s['B3'].font = F(size=10, color=GREY)
-row = 5
-def line(a, b='', bold=False, fill=None, color=INK):
-    global row
-    s.cell(row=row, column=2, value=a).font = F(bold=True, size=10, color=color)
-    c = s.cell(row=row, column=3, value=b); c.font = F(size=10, bold=bold); c.alignment = Alignment(wrap_text=True, vertical='top')
-    if fill:
-        s.cell(row=row, column=2).fill = PatternFill('solid', fgColor=fill)
-    row += 1
+    # ---- Check tab: live figures from the data, for sanity-checking before import
+    ck = wb.create_sheet('check_figures')
+    ck.sheet_properties.tabColor = 'FFC400'
+    ck['A1'] = 'Check figures — calculated from the tabs above. Not imported; for checking only.'
+    ck['A1'].font = F(bold=True, size=12)
+    ck['A2'] = 'Counts every session marked "held" and every attendance row, across the whole programme to date. The reports use the same rules per checkpoint.'
+    ck['A2'].font = F(size=9, color=GREY)
+    heads = ['fellow_id', 'Name', 'Firm', 'Sessions held', 'Attended', 'Attendance %', 'Feedback submitted', 'Feedback %', 'Missing attendance rows']
+    for i, h in enumerate(heads, 1):
+        c = ck.cell(row=4, column=i, value=h); c.font = F(bold=True, color='FFFFFF', size=10); c.fill = PatternFill('solid', fgColor=INK)
+        ck.column_dimensions[get_column_letter(i)].width = [26, 22, 26, 14, 11, 14, 18, 12, 22][i - 1]
+    N = 300
+    for k in range(N):
+        r = 5 + k; fr = 2 + k
+        ck[f'A{r}'] = f'=IF(fellows!A{fr}="","",fellows!A{fr})'
+        ck[f'B{r}'] = f'=IF(A{r}="","",fellows!B{fr}&" "&fellows!C{fr})'
+        ck[f'C{r}'] = f'=IF(A{r}="","",IFERROR(INDEX(firms!$B$2:$B$2000,MATCH(fellows!E{fr},firms!$A$2:$A$2000,0)),"(unknown firm)"))'
+        ck[f'D{r}'] = f'=IF(A{r}="","",COUNTIFS(sessions!$B$2:$B$2000,fellows!F{fr},sessions!$F$2:$F$2000,"held")+COUNTIFS(sessions!$B$2:$B$2000,fellows!F{fr},sessions!$F$2:$F$2000,""))'
+        ck[f'E{r}'] = f'=IF(A{r}="","",COUNTIFS(attendance_feedback!$A$2:$A$2000,A{r},attendance_feedback!$C$2:$C$2000,"yes"))'
+        ck[f'F{r}'] = f'=IF(A{r}="","",IF(D{r}=0,"—",E{r}/D{r}))'
+        ck[f'G{r}'] = f'=IF(A{r}="","",COUNTIFS(attendance_feedback!$A$2:$A$2000,A{r},attendance_feedback!$C$2:$C$2000,"yes",attendance_feedback!$D$2:$D$2000,"yes"))'
+        ck[f'H{r}'] = f'=IF(A{r}="","",IF(E{r}=0,"—",G{r}/E{r}))'
+        ck[f'I{r}'] = f'=IF(A{r}="","",MAX(0,D{r}-COUNTIFS(attendance_feedback!$A$2:$A$2000,A{r})))'
+        for col in 'ABCDEFGHI':
+            ck[f'{col}{r}'].font = F(size=10)
+        ck[f'F{r}'].number_format = '0%'; ck[f'H{r}'].number_format = '0%'
+    last = 5 + N - 1
+    ck['K4'] = 'Cohort averages'; ck['K4'].font = F(bold=True, size=10)
+    ck['K5'] = 'Attendance'; ck['L5'] = f'=IFERROR(AVERAGE(F5:F{last}),"—")'
+    ck['K6'] = 'Feedback completion'; ck['L6'] = f'=IFERROR(AVERAGE(H5:H{last}),"—")'
+    ck['K7'] = 'Average of each fellow\'s rate (fellows with no rate are left out).'
+    for c in ('K5', 'K6', 'L5', 'L6'): ck[c].font = F(size=10)
+    ck['K7'].font = F(size=9, color=GREY)
+    ck['L5'].number_format = '0%'; ck['L6'].number_format = '0%'
+    ck.column_dimensions['K'].width = 22; ck.column_dimensions['L'].width = 12
+    ck.freeze_panes = 'A5'
 
-line('HOW TO READ THIS FILE', color=KELLY)
-line('Green header', 'Required column. Every row needs a value.', fill=KELLY, color='FFFFFF')
-line('Grey header', 'Optional column. Leave blank if you don\'t have it.', fill='E5E5E5')
-line('Header notes', 'Hover over any column header to see what goes in it.')
-line('Grey italic rows', 'Example rows (the Example Capital / Horizon Ventures demo). Delete them and type your own data over them.')
-line('Dropdowns', 'yes/no, status and ID columns have dropdowns, so IDs always match between tabs.')
-line('Dates', 'Use real dates. They display as YYYY-MM-DD, which is the format the import expects.')
-line('Column names', 'Do not rename, reorder or delete the header row. You may add your own extra columns to the right; they are ignored.')
-row += 1
-line('FILL IN THIS ORDER', color=KELLY)
-for tab, desc, _ in TABLES:
-    line(tab, desc)
-line('check_figures', 'Not imported. Shows each fellow\'s attendance and feedback figures so you can sanity-check before uploading.')
-row += 1
-line('RULES THAT MATTER', color=KELLY)
-line('IDs', 'Choose short IDs once (e.g. firm-acme, fellow-jane-doe, s01) and never change them. Names can change; IDs cannot.')
-line('Every fellow, every session', 'Add one attendance_feedback row for every fellow for every session held, including absences (attended = no). A missing row counts as absent and is flagged.')
-line('Reflections', 'Paste the fellow\'s answers exactly as submitted. Nothing is rewritten, summarised or generated by AI; the report shows their own words.')
-line('Feedback', 'Feedback only counts for sessions the fellow attended. Feedback completion % = feedback submitted ÷ sessions attended.')
-line('Capstone', 'When a status changes (e.g. pending → complete), add a new row with a new recorded_at date instead of editing the old one.')
-line('Checkpoints', 'Each report round is a checkpoint listing the sessions it covers. Once published, leave it alone and add the next one.')
-line('Cohort averages', 'Include all fellows in the cohort, even if their firm is not receiving a report (set report_enabled = no on that firm).')
-line('Links', 'Leave report_token blank. The system creates the private link codes.')
-row += 1
-line('Questions', 'Full specification: docs/DATA_IMPORT.md in the project repository.')
+    # ---- Start here
+    s = start
+    s.sheet_view.showGridLines = False
+    s.column_dimensions['A'].width = 3; s.column_dimensions['B'].width = 26; s.column_dimensions['C'].width = 92
+    s['B2'] = 'Investment Cohort progress reports — data template'; s['B2'].font = F(bold=True, size=16)
+    s['B3'] = 'Fill in one tab per table. Each tab is saved as a CSV (File → Download → CSV, one tab at a time) and uploaded in the report admin.'
+    s['B3'].font = F(size=10, color=GREY)
+    pos = [5]
+    def line(a, b='', bold=False, fill=None, color=INK):
+        row = pos[0]
+        s.cell(row=row, column=2, value=a).font = F(bold=True, size=10, color=color)
+        c = s.cell(row=row, column=3, value=b); c.font = F(size=10, bold=bold); c.alignment = Alignment(wrap_text=True, vertical='top')
+        if fill:
+            s.cell(row=row, column=2).fill = PatternFill('solid', fgColor=fill)
+        pos[0] += 1
+    for a, b in (intro or []):
+        line(a, b, color=KELLY if not b else INK)
+    if intro:
+        pos[0] += 1
 
-for ws in wb.worksheets:
-    ws.sheet_view.zoomScale = 110
-wb.save(OUT)
-print('saved', OUT)
+    line('HOW TO READ THIS FILE', color=KELLY)
+    line('Green header', 'Required column. Every row needs a value.', fill=KELLY, color='FFFFFF')
+    line('Grey header', 'Optional column. Leave blank if you don\'t have it.', fill='E5E5E5')
+    line('Header notes', 'Hover over any column header to see what goes in it.')
+    line('Grey italic rows', 'Example rows (the Example Capital / Horizon Ventures demo). Delete them and type your own data over them.') if examples else line('Yellow cells', 'Need checking or filling in before import. Hover over a yellow cell to see why.', fill='FFE680')
+    line('Dropdowns', 'yes/no, status and ID columns have dropdowns, so IDs always match between tabs.')
+    line('Dates', 'Use real dates. They display as YYYY-MM-DD, which is the format the import expects.')
+    line('Column names', 'Do not rename, reorder or delete the header row. You may add your own extra columns to the right; they are ignored.')
+    pos[0] += 1
+    line('FILL IN THIS ORDER', color=KELLY)
+    for tab, desc, _ in TABLES:
+        line(tab, desc)
+    line('check_figures', 'Not imported. Shows each fellow\'s attendance and feedback figures so you can sanity-check before uploading.')
+    pos[0] += 1
+    line('RULES THAT MATTER', color=KELLY)
+    line('IDs', 'Choose short IDs once (e.g. firm-acme, fellow-jane-doe, s01) and never change them. Names can change; IDs cannot.')
+    line('Every fellow, every session', 'Add one attendance_feedback row for every fellow for every session held, including absences (attended = no). A missing row counts as absent and is flagged.')
+    line('Reflections', 'Paste the fellow\'s answers exactly as submitted. Nothing is rewritten, summarised or generated by AI; the report shows their own words.')
+    line('Feedback', 'Feedback only counts for sessions the fellow attended. Feedback completion % = feedback submitted ÷ sessions attended.')
+    line('Capstone', 'When a status changes (e.g. pending → complete), add a new row with a new recorded_at date instead of editing the old one.')
+    line('Checkpoints', 'Each report round is a checkpoint listing the sessions it covers. Once published, leave it alone and add the next one.')
+    line('Cohort averages', 'Include all fellows in the cohort, even if their firm is not receiving a report (set report_enabled = no on that firm).')
+    line('Links', 'Leave report_token blank. The system creates the private link codes.')
+    pos[0] += 1
+    line('Questions', 'Full specification: docs/DATA_IMPORT.md in the project repository.')
+
+    for ws in wb.worksheets:
+        ws.sheet_view.zoomScale = 110
+    wb.save(OUT)
+    print('saved', OUT)
+
+
+if __name__ == '__main__':
+    build(sys.argv[1], rows)

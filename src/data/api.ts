@@ -5,7 +5,7 @@
 import type { TableSpec } from './importSpec';
 import type { FellowReportModel, FirmReportModel, ReportQuery, ReportRepository } from './repository';
 import type { Dataset } from './types';
-import type { AdminActions, ImportResult } from './adminActions';
+import type { AdminActions, ImportResult, WorkbookImportResult } from './adminActions';
 
 export class AuthRequired extends Error {}
 export class Forbidden extends Error {}
@@ -53,27 +53,25 @@ export interface Me {
   mailLive?: boolean;
 }
 
+export type SignInError = 'not_authorised' | 'rate_limited' | 'admin_not_configured' | 'invalid_email' | 'failed';
+
+async function signIn(path: string, body: unknown): Promise<{ home: string } | { error: SignInError }> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-ivc': '1' },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) return (await res.json()) as { home: string };
+  const err = ((await res.json().catch(() => ({}))) as { error?: string }).error;
+  return { error: (['not_authorised', 'rate_limited', 'admin_not_configured', 'invalid_email'].includes(err ?? '') ? err : 'failed') as SignInError };
+}
+
 export const authApi = {
   me: () => call<Me>('/api/me') as Promise<Me>,
-  async requestCode(email: string): Promise<'sent' | 'rate_limited' | 'invalid' | 'failed'> {
-    const res = await fetch('/api/auth/request-code', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-ivc': '1' },
-      body: JSON.stringify({ email }),
-    });
-    if (res.ok) return 'sent';
-    if (res.status === 429) return 'rate_limited';
-    if (res.status === 400) return 'invalid';
-    return 'failed';
-  },
-  async verify(email: string, code: string): Promise<{ home: string } | null> {
-    const res = await fetch('/api/auth/verify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-ivc': '1' },
-      body: JSON.stringify({ email, code }),
-    });
-    return res.ok ? ((await res.json()) as { home: string }) : null;
-  },
+  /** Partner: email on the firm link they arrived with. */
+  signInEmail: (email: string, firmToken: string) => signIn('/api/auth/email', { email, firmToken }),
+  /** Admin: email + admin password. */
+  signInAdmin: (email: string, password: string) => signIn('/api/auth/admin', { email, password }),
   signOut: () => fetch('/api/auth/sign-out', { method: 'POST', headers: { 'x-ivc': '1' } }),
 };
 
@@ -105,6 +103,16 @@ export const apiAdminActions: AdminActions = {
     });
     if (!r) throw new Error('Import failed');
     return r;
+  },
+  async importWorkbook(file: File, dryRun: boolean) {
+    const res = await fetch(`/api/admin/import-workbook${dryRun ? '?dryRun=1' : ''}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/octet-stream', 'x-ivc': '1' },
+      body: file,
+    });
+    if (res.status === 401) throw new AuthRequired();
+    if (!res.ok) throw new Error(res.status === 400 ? 'That file is not a readable .xlsx workbook.' : `Upload failed (${res.status})`);
+    return (await res.json()) as WorkbookImportResult;
   },
   async invite(firmId: string) {
     const r = await call<{ sent: number; failed: string[]; link: string }>(`/api/admin/invite/${encodeURIComponent(firmId)}`, {

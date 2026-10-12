@@ -14,11 +14,13 @@ services:
         value: /var/data/reports.db
       - key: SESSION_SECRET
         generateValue: true
-      - key: ADMIN_EMAILS       # your email(s), comma-separated
+      - key: ADMIN_EMAILS       # admin email(s), comma-separated
+        value: ops@included.vc
+      - key: ADMIN_PASSWORD     # the admin password: choose a long one (12+ characters)
         sync: false
       - key: PUBLIC_URL         # e.g. https://included-vc-reports.onrender.com
         sync: false
-      - key: SMTP_URL           # leave empty to start in test mode (codes in the logs)
+      - key: SMTP_URL           # optional: only needed for the "Email link" button to send real emails
         sync: false
       - key: MAIL_FROM          # e.g. Included VC Africa <reports@included.vc>
         sync: false

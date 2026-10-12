@@ -28,7 +28,7 @@ export function createMailer(db: DB, opts: { smtpUrl?: string; from: string }): 
     async send(email) {
       if (!transport) {
         record.run(Date.now(), email.to, email.subject, email.text, email.html, 'test_outbox', null);
-        // Test mode only: lets whoever runs the server read sign-in codes in the log.
+        // Test mode only: shows in the server log which emails would have been sent.
         console.log(`[test outbox] ${new Date().toISOString()} to ${email.to}: ${email.subject}`);
         return;
       }
@@ -60,19 +60,6 @@ function frame(body: string) {
 </td></tr></table></body></html>`;
 }
 
-export function signInCodeEmail(to: string, code: string, name: string | null): Email {
-  const greeting = name ? `Hello ${name},` : 'Hello,';
-  return {
-    to,
-    subject: `${code} is your Included VC report sign-in code`,
-    text: `${greeting}\n\nYour sign-in code is ${code}. It expires in 10 minutes.\n\nIf you didn't ask for this code, you can ignore this email.`,
-    html: frame(`<p style="font-size:16px;line-height:1.6;margin:0 0 20px">${esc(greeting)}</p>
-<p style="font-size:16px;line-height:1.6;margin:0 0 12px">Your sign-in code is:</p>
-<p style="font-size:40px;font-weight:900;letter-spacing:.12em;margin:0 0 20px;font-family:Helvetica,Arial,sans-serif">${code}</p>
-<p style="font-size:14px;line-height:1.6;color:#5C5C5C;margin:0">It expires in 10 minutes. If you didn't ask for this code, you can ignore this email.</p>`),
-  };
-}
-
 export function reportInvitationEmail(opts: {
   to: string;
   name: string | null;
@@ -94,13 +81,13 @@ The ${opts.checkpointTitle} progress report for ${opts.firmName} is ready. It sh
 Open your private report:
 ${opts.link}
 
-You'll be asked for this email address and sent a one-time sign-in code. The report is private to your firm's leadership.
+When the page asks, enter this email address (${opts.to}). The report is private to your firm's leadership; please don't forward this link.
 
 Included VC Africa`;
   const html = frame(`<p style="font-size:16px;line-height:1.6;margin:0 0 16px">${esc(greeting)}</p>
 <h1 style="font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;margin:0 0 16px">Your fellows' progress</h1>
 <p style="font-size:16px;line-height:1.6;margin:0 0 24px">The ${esc(opts.checkpointTitle)} progress report for <strong>${esc(opts.firmName)}</strong> is ready. It shows how ${esc(fellows)} ${opts.fellowNames.length === 1 ? 'is' : 'are'} attending, engaging and applying what they are learning on the Investment Cohort.</p>
 <p style="margin:0 0 28px"><a href="${esc(opts.link)}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 22px;border-radius:999px">Open your report →</a></p>
-<p style="font-size:14px;line-height:1.6;color:#5C5C5C;margin:0">You'll be asked for this email address and sent a one-time sign-in code. The report is private to your firm's leadership.</p>`);
+<p style="font-size:14px;line-height:1.6;color:#5C5C5C;margin:0">When the page asks, enter this email address (${opts.to}). The report is private to your firm's leadership; please don't forward this link.</p>`);
   return { to: opts.to, subject, text, html };
 }

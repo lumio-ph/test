@@ -4,8 +4,8 @@ A private, personalised progress report for the leadership of each investment
 firm that sponsors fellows on the Investment Cohort, with an individual report
 for every fellow. One report design, driven entirely by data.
 
-Partners open their firm's private link, sign in with a one-time code sent
-to their email, and see only their own firm's report. The Included VC team
+Partners open their firm's private link, enter their email address, and see
+only their own firm's report. The Included VC team
 manages data, checkpoints, recipients and invitations in the admin.
 
 > The repository ships with **demonstration data** (Example Capital, Horizon
@@ -19,7 +19,7 @@ manages data, checkpoints, recipients and invitations in the admin.
 | Company report | Introduction, sponsored fellows at a glance, their own words on what they'll apply, comparison with the cohort, closing |
 | Individual report | 01 Participation & attendance · 02 Feedback & engagement · 03 Learning journey · 04 Capstone Lab · closing |
 | Checkpoints | Switch between reporting checkpoints; earlier reports stay as issued |
-| Sign-in | Email + 6-digit one-time code; firm-level access enforced on the server |
+| Sign-in | Partners: firm link + email on that firm's list. Admins: email + password. Enforced on the server |
 | Admin (`/admin`) | Preview reports at any width, publish checkpoints, email each firm its link, outbox, activity log, data checks, CSV import, recipients |
 
 Sample reports: **Example Capital** (Alexandra Smith, Daniel Mensah) and
@@ -30,11 +30,11 @@ feed the cohort averages.
 
 ```bash
 npm install
-npm run build && ADMIN_EMAILS=you@included.vc npm start   # http://localhost:8787
+npm run build && ADMIN_PASSWORD=choose-one npm start   # http://localhost:8787 (admin: ops@included.vc)
 npm test              # calculations, import, and access-control tests
 
 # development
-npm run dev:server    # API on :8787 (sign-in codes print in this terminal)
+npm run dev:server    # API on :8787 (dev admin password: dev-admin-password)
 npm run dev           # app on :5173, proxied to the API
 npm run dev:demo      # self-contained demo, no server
 
@@ -46,11 +46,14 @@ Requires Node 22.5 or newer.
 
 ## Data template
 
-`templates/included-vc-report-data-template.xlsx` is the spreadsheet to fill in: one tab per table, dropdowns, notes on every column, example rows, and a `check_figures` tab. Export each tab as CSV and upload it in the admin's Import tab.
+`templates/included-vc-report-data-template.xlsx` is the spreadsheet to fill in: one tab per table, dropdowns, notes on every column, example rows, and a `check_figures` tab. Upload the whole workbook in the admin's Import data tab.
+
+`scripts/fill_from_feedback_export.py` fills the template from the programme's feedback export (Basic info + one sheet per session).
 
 ## Docs
 
 - [docs/DATA_IMPORT.md](docs/DATA_IMPORT.md) — import format, and exactly how every number is calculated
+- [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md) — step by step for the Included VC team
 - [docs/DEPLOY.md](docs/DEPLOY.md) — deploy, test partner access, connect email, go live
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — code structure, routes, and the access-control rules
 

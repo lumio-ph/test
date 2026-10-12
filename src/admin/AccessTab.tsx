@@ -9,9 +9,8 @@ const when = (ms: number) =>
   new Date(ms).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 const actionLabel: Record<string, string> = {
-  sign_in_code_sent: 'Sign-in code sent',
-  sign_in_code_refused: 'Code requested by an unknown email',
-  sign_in_failed: 'Wrong code entered',
+  sign_in_refused: 'Refused: email not on this firm’s list',
+  sign_in_failed: 'Admin sign-in failed',
   signed_in: 'Signed in',
   report_viewed: 'Viewed report',
   report_denied: 'Blocked: tried another firm’s link',
@@ -78,8 +77,8 @@ export function AccessTab({ data }: { data: Dataset }) {
     <div className="a-page">
       <h2>Send & access</h2>
       <p>
-        Partners get in with their email address: the link opens a sign-in page, they receive a one-time code, and they see
-        only their own firm’s report. Anyone not on a firm’s recipient list gets nothing, even with the link.
+        Partners open their firm’s private link and enter their email address. They get in only if that email is on the
+        firm’s recipient list, and they see only their own firm’s report. Anyone else gets nothing, even with the link.
       </p>
 
       {notice && (
@@ -164,7 +163,7 @@ export function AccessTab({ data }: { data: Dataset }) {
         </div>
         <p style={{ marginTop: 14, marginBottom: 0 }}>
           To test the partner experience yourself, add your own email as a <code>firm_leader</code> for a firm in{' '}
-          <code>authorised_users.csv</code>, import it, then press “Email link”.
+          the <code>authorised_users</code> tab of the data workbook, upload it, then press “Email link” (or just open the firm’s link and enter your email).
         </p>
       </div>
 
@@ -222,12 +221,12 @@ export function AccessTab({ data }: { data: Dataset }) {
                     {when(a.at)}
                   </td>
                   <td>
-                    <span className={`a-tag ${a.action === 'report_denied' || a.action === 'sign_in_failed' ? 'a-tag--error' : 'a-tag--ok'}`}>
+                    <span className={`a-tag ${a.action === 'report_denied' || a.action === 'sign_in_failed' || a.action === 'sign_in_refused' ? 'a-tag--error' : 'a-tag--ok'}`}>
                       {actionLabel[a.action] ?? a.action}
                     </span>
                   </td>
-                  <td className="a-link">{a.email ?? (a.action === 'sign_in_code_refused' ? a.detail : '')}</td>
-                  <td>{a.action === 'sign_in_code_refused' ? '' : a.detail}</td>
+                  <td className="a-link">{a.email ?? (a.action === 'sign_in_refused' ? a.detail : '')}</td>
+                  <td>{a.action === 'sign_in_refused' ? '' : a.detail}</td>
                 </tr>
               ))}
             </tbody>
