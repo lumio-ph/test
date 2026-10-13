@@ -6,7 +6,7 @@ import { DEMO } from '../config';
 import logo from '../assets/included-vc-logo.png';
 import { useQuery } from '../data/DataProvider';
 import { FellowReportView } from '../report/FellowReportView';
-import { FirmReportView } from '../report/FirmReportView';
+import { FirmChooser } from '../report/FirmChooser';
 
 /*
  * ACCESS
@@ -32,7 +32,7 @@ export function FirmReportPage() {
   }, [data]);
   if (error instanceof AuthRequired) return <ToSignIn />;
   if (loading && !data) return null;
-  return data ? <FirmReportView model={data} /> : <ReportNotFound />;
+  return data ? <FirmChooser model={data} /> : <ReportNotFound />;
 }
 
 export function FellowReportPage() {

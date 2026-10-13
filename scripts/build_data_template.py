@@ -54,7 +54,8 @@ TABLES = [
    ('feedback_submitted', 1, 'yesno', 'yes / no. Only counts when attended = yes.'),
    ('what_i_learned', 0, 'longtext', 'Original response to "What did you learn?" — copy exactly, do not edit'),
    ('what_ill_apply', 0, 'longtext', 'Original response to "What will you apply?" — copy exactly, do not edit'),
-   ('feedback_submitted_at', 0, 'date', 'Optional')]),
+   ('feedback_submitted_at', 0, 'date', 'Optional'),
+   ('session_rating', 0, 'num', 'Optional. The fellow\'s 1-5 rating of the session from the feedback form')]),
  ('capstone', 'Add a NEW row each time a fellow\'s Capstone status changes (do not overwrite), so earlier reports stay as issued.', [
    ('fellow_id', 1, 'ref:fellows', ''),
    ('recorded_at', 1, 'date', 'The date this row became true'),

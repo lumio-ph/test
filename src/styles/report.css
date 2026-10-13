@@ -266,15 +266,15 @@
 .r-header__bar {
   max-width: var(--container);
   margin: 0 auto;
-  padding: 12px var(--gutter);
+  padding: 14px var(--gutter);
   display: flex;
   align-items: center;
   gap: 20px;
-  min-height: 64px;
+  min-height: 80px;
 }
 
 .r-header__logo {
-  height: 34px;
+  height: 52px;
   width: auto;
   flex: none;
   display: block;
@@ -339,6 +339,33 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
+}
+
+.r-header__nav + .r-header__tools {
+  margin-left: 0;
+}
+
+.r-header__firm {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  border-left: 1px solid var(--ink-200);
+  min-width: 0;
+  max-width: 260px;
+}
+
+.r-header__firm img {
+  height: 40px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+}
+
+.r-header__firm > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .r-signout {
@@ -711,6 +738,16 @@
 .r-dot--upcoming {
   background: var(--ink-100);
   color: var(--ink-300);
+}
+
+.r-strip--lg {
+  gap: 14px;
+}
+
+.r-strip--lg .r-dot {
+  width: 64px;
+  height: 64px;
+  font-size: 18px;
 }
 
 .r-strip--sm .r-dot {
@@ -1542,6 +1579,10 @@
   box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--ink-200);
 }
 
+.r-capstone--simple:not(:has(.r-capstone__rows)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .r-capstone__status {
   padding: 48px 40px;
   background: var(--ink);
@@ -1777,6 +1818,21 @@
   color: var(--ink);
 }
 
+/* ---------- Firm link: choose a fellow ---------- */
+
+.r-choose {
+  display: grid;
+  gap: 20px;
+}
+
+.r-choose__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  padding: 32px 36px;
+}
+
 /* ---------- Reveal on scroll ---------- */
 
 .r-reveal {
@@ -1863,6 +1919,11 @@
 }
 
 @container report (max-width: 720px) {
+  .r-choose__item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 28px 22px;
+  }
   .r-wrap {
     padding: 0 16px;
   }
@@ -1872,7 +1933,15 @@
     min-height: 56px;
   }
   .r-header__logo {
-    height: 28px;
+    height: 34px;
+  }
+  .r-header__firm {
+    padding-left: 12px;
+    max-width: 120px;
+  }
+  .r-header__firm img {
+    height: 26px;
+    max-width: 110px;
   }
   .r-header__for {
     padding-left: 12px;
@@ -1977,6 +2046,14 @@
     width: 38px;
     height: 38px;
     font-size: 13px;
+  }
+  .r-strip--lg {
+    gap: 10px;
+  }
+  .r-strip--lg .r-dot {
+    width: 48px;
+    height: 48px;
+    font-size: 15px;
   }
   .r-closing {
     padding: 80px 0;

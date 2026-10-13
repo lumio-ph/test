@@ -88,6 +88,16 @@ function num(c: Ctx, col: string): number | undefined {
   return n;
 }
 
+function rating(c: Ctx, col: string): number | undefined {
+  const n = num(c, col);
+  if (n === undefined) return undefined;
+  if (n < 1 || n > 5) {
+    c.issues.push({ row: c.row, message: `"${col}" should be between 1 and 5, got ${n}` });
+    return undefined;
+  }
+  return n;
+}
+
 function oneOf<T extends string>(c: Ctx, col: string, allowed: readonly T[], fallback: T): T {
   const v = str(c, col).toLowerCase() as T;
   if (!v) return fallback;
@@ -256,6 +266,7 @@ const sessionRecords: TableSpec<SessionRecord> = {
     { name: 'what_i_learned', help: 'Original response, verbatim' },
     { name: 'what_ill_apply', help: 'Original response, verbatim' },
     { name: 'feedback_submitted_at', help: 'YYYY-MM-DD. Optional.' },
+    { name: 'session_rating', help: 'Optional. The fellow’s 1–5 rating of the session from the feedback form.' },
   ],
   toRows: (d) =>
     d.sessionRecords.map((r) => [
@@ -266,6 +277,7 @@ const sessionRecords: TableSpec<SessionRecord> = {
       r.whatILearned,
       r.whatIllApply,
       r.feedbackSubmittedAt,
+      r.rating,
     ]),
   parse(rec, row, issues) {
     const c = { rec, row, issues };
@@ -285,6 +297,7 @@ const sessionRecords: TableSpec<SessionRecord> = {
       whatILearned: verbatim(c, 'what_i_learned'),
       whatIllApply: verbatim(c, 'what_ill_apply'),
       feedbackSubmittedAt: date(c, 'feedback_submitted_at'),
+      rating: rating(c, 'session_rating'),
     };
   },
 };

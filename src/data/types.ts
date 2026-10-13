@@ -67,6 +67,8 @@ export interface SessionRecord {
   whatILearned?: string;
   whatIllApply?: string;
   feedbackSubmittedAt?: ISODate;
+  /** The fellow's 1–5 rating of the session, from the feedback form. */
+  rating?: number;
 }
 
 export type AssessmentStatus = 'not_started' | 'pending' | 'complete';

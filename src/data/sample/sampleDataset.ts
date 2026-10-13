@@ -286,6 +286,7 @@ for (const fellow of featured) {
       whatILearned: submitted ? words?.[0] : undefined,
       whatIllApply: submitted ? words?.[1] : undefined,
       feedbackSubmittedAt: submitted ? addDays(sessions[n - 1].date, 2) : undefined,
+      rating: submitted ? [5, 4, 5, 5, 4, 5, 4, 5][n - 1] : undefined,
     });
   }
 }
@@ -299,6 +300,7 @@ cohortFellows.forEach((fellow, i) => {
       sessionId: sid(n),
       attended,
       feedbackSubmitted: attended && fb[n - 1] === '1',
+      rating: attended && fb[n - 1] === '1' ? [5, 4, 4, 5, 3, 5, 4, 5, 4][(i + n) % 9] : undefined,
     });
   }
 });

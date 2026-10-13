@@ -69,7 +69,7 @@ function DemoIndex() {
                     <FirmMark firm={f} />
                   </div>
                   <Link className="r-button" to={reportPath({ firmToken: f.reportToken })}>
-                    Company report <Icon.Arrow />
+                    Firm link <Icon.Arrow />
                   </Link>
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

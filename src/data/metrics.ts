@@ -37,6 +37,7 @@ export interface SessionLine {
   feedback: FeedbackOutcome;
   whatILearned: string | null;
   whatIllApply: string | null;
+  rating: number | null;
 }
 
 export interface Rate {
@@ -67,6 +68,8 @@ export interface FellowMetrics {
   sessionsMissed: number;
   attendance: Rate;
   feedback: Rate; // submissions / attended
+  /** The fellow's own session ratings (1–5), sessions attended only. */
+  ratings: { count: number; average: number | null };
   lines: SessionLine[];
   capstone: CapstoneView;
 }
@@ -78,6 +81,12 @@ export interface CohortBenchmarks {
   feedback: number | null;
   feedbackPercent: number | null;
   sessionsHeld: number;
+  /** Session ratings across the cohort (1–5) for the sessions held. */
+  ratingsCount: number;
+  /** Share of those ratings that were a 4 or 5. */
+  highRatingShare: number | null;
+  highRatingPercent: number | null;
+  averageRating: number | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -108,6 +117,9 @@ export function checkpointSessions(checkpoint: Checkpoint, sessions: Session[]) 
 function recordFor(records: SessionRecord[], fellowId: string, sessionId: string) {
   return records.find((r) => r.fellowId === fellowId && r.sessionId === sessionId);
 }
+
+const validRating = (r: number | undefined): number | null =>
+  typeof r === 'number' && r >= 1 && r <= 5 ? r : null;
 
 const clean = (text: string | undefined): string | null =>
   text && text.trim().length > 0 ? text : null;
@@ -178,14 +190,14 @@ export function fellowMetrics(
     .filter((s) => s.status !== 'cancelled')
     .map((session) => {
       if (!heldIds.has(session.id)) {
-        return { session, outcome: 'upcoming', feedback: 'not_applicable', whatILearned: null, whatIllApply: null };
+        return { session, outcome: 'upcoming', feedback: 'not_applicable', whatILearned: null, whatIllApply: null, rating: null };
       }
       const rec = recordFor(data.sessionRecords, fellow.id, session.id);
       if (!rec) {
-        return { session, outcome: 'unrecorded', feedback: 'not_applicable', whatILearned: null, whatIllApply: null };
+        return { session, outcome: 'unrecorded', feedback: 'not_applicable', whatILearned: null, whatIllApply: null, rating: null };
       }
       if (!rec.attended) {
-        return { session, outcome: 'missed', feedback: 'not_applicable', whatILearned: null, whatIllApply: null };
+        return { session, outcome: 'missed', feedback: 'not_applicable', whatILearned: null, whatIllApply: null, rating: null };
       }
       return {
         session,
@@ -193,6 +205,7 @@ export function fellowMetrics(
         feedback: rec.feedbackSubmitted ? 'submitted' : 'not_submitted',
         whatILearned: rec.feedbackSubmitted ? clean(rec.whatILearned) : null,
         whatIllApply: rec.feedbackSubmitted ? clean(rec.whatIllApply) : null,
+        rating: validRating(rec.rating),
       };
     });
 
@@ -200,6 +213,7 @@ export function fellowMetrics(
   const attended = heldLines.filter((l) => l.outcome === 'attended').length;
   const submissions = heldLines.filter((l) => l.feedback === 'submitted').length;
 
+  const rated = heldLines.map((l) => l.rating).filter((r): r is number => r !== null);
   return {
     fellow,
     sessionsHeld: held.length,
@@ -207,6 +221,7 @@ export function fellowMetrics(
     sessionsMissed: held.length - attended,
     attendance: rate(attended, held.length),
     feedback: rate(submissions, attended),
+    ratings: { count: rated.length, average: mean(rated) },
     lines,
     capstone: capstoneAt(data.capstones, fellow.id, checkpoint.reportingDate),
   };
@@ -222,6 +237,8 @@ export function cohortBenchmarks(data: Dataset, checkpoint: Checkpoint): CohortB
   const fb = all.map((m) => m.feedback.value).filter((v): v is number => v !== null);
   const attendance = mean(att);
   const feedback = mean(fb);
+  const ratings = all.flatMap((m) => m.lines.map((l) => l.rating).filter((r): r is number => r !== null));
+  const high = rate(ratings.filter((r) => r >= 4).length, ratings.length);
   return {
     fellowsCounted: fellows.length,
     attendance,
@@ -229,6 +246,10 @@ export function cohortBenchmarks(data: Dataset, checkpoint: Checkpoint): CohortB
     feedback,
     feedbackPercent: toPercent(feedback),
     sessionsHeld: checkpointSessions(checkpoint, data.sessions).held.length,
+    ratingsCount: ratings.length,
+    highRatingShare: high.value,
+    highRatingPercent: high.percent,
+    averageRating: mean(ratings),
   };
 }
 

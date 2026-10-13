@@ -15,7 +15,7 @@ export function SessionStrip({
   programmeTotal = 0,
 }: {
   lines: SessionLine[];
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   showUpcoming?: boolean;
   /** Pads the strip with "still to come" dots up to the programme length. */
   programmeTotal?: number;
@@ -26,7 +26,7 @@ export function SessionStrip({
     ? Array.from({ length: Math.max(0, programmeTotal - lastNumber) }, (_, i) => lastNumber + i + 1)
     : [];
   return (
-    <ol className={`r-strip ${size === 'sm' ? 'r-strip--sm' : ''}`} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+    <ol className={`r-strip ${size === 'sm' ? 'r-strip--sm' : size === 'lg' ? 'r-strip--lg' : ''}`} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
       {shown.map((l) => (
         <li
           key={l.session.id}

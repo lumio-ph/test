@@ -126,6 +126,7 @@ for sheet_name in session_sheets:
     name_col = find('your name')[0]
     learned_cols = find('understand better')
     apply_cols = find('apply', 'differently')
+    rating_cols = find('compared with the training')
 
     sid = f's{n:02d}'
     sessions.append({
@@ -155,7 +156,15 @@ for sheet_name in session_sheets:
         if not fid:
             unmatched.append((sheet_name, r[name_col]))
             continue
-        entry = by_fellow.setdefault(fid, {'learned': [], 'apply': []})
+        entry = by_fellow.setdefault(fid, {'learned': [], 'apply': [], 'rating': None})
+        for i in rating_cols:
+            v = r[i] if i < len(r) else None
+            try:
+                v = float(str(v).strip())
+            except (TypeError, ValueError):
+                v = None
+            if entry['rating'] is None and v is not None and 1 <= v <= 5:
+                entry['rating'] = int(v) if v.is_integer() else v  # first rating if submitted twice
         for i in learned_cols:
             t = fix_text(r[i]) if i < len(r) else None
             if t:
@@ -175,6 +184,7 @@ for sheet_name in session_sheets:
             'what_i_learned': '\n\n'.join(e['learned']) if e else '',
             'what_ill_apply': '\n\n'.join(e['apply']) if e else '',
             'feedback_submitted_at': '',
+            'session_rating': str(e['rating']) if e and e['rating'] is not None else '',
         }
         records.append(row)
         if not e:
@@ -235,7 +245,7 @@ intro = [
                f'{sum(1 for r in records if r["feedback_submitted"] == "yes")} feedback submissions'),
     ('Still to fill in', f'{missing_attendance} attendance cells (fellows who sent no feedback) · titles for sessions 5–{len(held)} · '
                          'firm leadership emails (authorised_users) · Capstone results when available'),
-    ('Not included', 'Session ratings and notes written to facilitators. They are not part of the partner report.'),
+    ('Not included', 'Notes written to facilitators. Session ratings are included (session_rating).'),
 ]
 build(OUT, lambda tab: TABLE_ROWS[tab], flags=flags, examples=False, intro=intro)
 print(f'fellows={len(fellows)} firms={len(firms)} held={len(held)} '

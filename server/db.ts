@@ -42,7 +42,7 @@ create table if not exists sessions (
 create table if not exists session_records (
   fellow_id text not null, session_id text not null, attended integer not null,
   feedback_submitted integer not null, what_i_learned text, what_ill_apply text,
-  feedback_submitted_at text, primary key (fellow_id, session_id));
+  feedback_submitted_at text, rating real, primary key (fellow_id, session_id));
 create table if not exists capstones (
   seq integer primary key autoincrement, fellow_id text not null, recorded_at text not null,
   submitted integer not null, submission_date text, submission_deadline text not null,
@@ -77,6 +77,9 @@ export function openDb(path: string): DB {
   const db = new DatabaseSync(path);
   db.exec('pragma journal_mode = wal; pragma busy_timeout = 5000;');
   db.exec(SCHEMA);
+  // Columns added after the first release (no-op once present).
+  const cols = (db.prepare('pragma table_info(session_records)').all() as Array<{ name: string }>).map((c) => c.name);
+  if (!cols.includes('rating')) db.exec('alter table session_records add column rating real');
   return db;
 }
 
@@ -159,6 +162,7 @@ export function loadDataset(db: DB): Dataset {
         whatILearned: s(r.what_i_learned),
         whatIllApply: s(r.what_ill_apply),
         feedbackSubmittedAt: s(r.feedback_submitted_at),
+        rating: n(r.rating),
       }),
     ),
     capstones: all(db, 'select * from capstones order by seq').map(
@@ -223,9 +227,11 @@ const writers: { [K in Key]: (db: DB, items: Dataset[K]) => void } = {
     for (const x of items) st.run(x.id, x.cohortId, x.number, x.title, x.date, v(x.facilitator), x.status);
   },
   sessionRecords(db, items) {
-    const st = db.prepare('insert into session_records values (?,?,?,?,?,?,?)');
+    const st = db.prepare(
+      'insert into session_records (fellow_id, session_id, attended, feedback_submitted, what_i_learned, what_ill_apply, feedback_submitted_at, rating) values (?,?,?,?,?,?,?,?)',
+    );
     for (const r of items)
-      st.run(r.fellowId, r.sessionId, v(r.attended), v(r.feedbackSubmitted), v(r.whatILearned), v(r.whatIllApply), v(r.feedbackSubmittedAt));
+      st.run(r.fellowId, r.sessionId, v(r.attended), v(r.feedbackSubmitted), v(r.whatILearned), v(r.whatIllApply), v(r.feedbackSubmittedAt), v(r.rating));
   },
   capstones(db, items) {
     const st = db.prepare(

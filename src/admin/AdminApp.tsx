@@ -4,7 +4,7 @@ import logo from '../assets/included-vc-logo.png';
 import { useQuery } from '../data/DataProvider';
 import { fellowMetrics } from '../data/metrics';
 import { FellowReportView } from '../report/FellowReportView';
-import { FirmReportView } from '../report/FirmReportView';
+import { FirmChooser } from '../report/FirmChooser';
 import { fullName } from '../report/format';
 import { ReportNavProvider, reportPath, type ReportTarget } from '../report/ReportNav';
 import type { Dataset } from '../data/types';
@@ -182,7 +182,7 @@ function PreviewTab({ data }: { data: Dataset }) {
                 aria-current={target.firmToken === f.reportToken && !target.fellowToken}
                 onClick={() => go({ firmToken: f.reportToken, checkpointId: target.checkpointId })}
               >
-                Company report <small>firm</small>
+                Firm link <small>{firmFellows(data, f.id).length === 1 ? 'opens fellow' : 'choose'}</small>
               </button>
               {firmFellows(data, f.id).map((fl) => (
                 <button
@@ -232,7 +232,7 @@ function PreviewReport({ target, includeDrafts }: { target: ReportTarget; includ
   return 'metrics' in data ? (
     <FellowReportView key={`${target.fellowToken}-${data.checkpoint.id}`} model={data} />
   ) : (
-    <FirmReportView key={`${target.firmToken}-${data.checkpoint.id}`} model={data} />
+    <FirmChooser key={`${target.firmToken}-${data.checkpoint.id}`} model={data} />
   );
 }
 
@@ -266,7 +266,7 @@ function LinksTab({ data }: { data: Dataset }) {
       </p>
       {reportFirms(data).map((f) => {
         const rows: Array<[string, string, ReportTarget]> = [
-          ['Company report', f.name, { firmToken: f.reportToken }],
+          ['Firm link (send this)', f.name, { firmToken: f.reportToken }],
           ...firmFellows(data, f.id).map(
             (fl): [string, string, ReportTarget] => ['Fellow report', fullName(fl), { firmToken: f.reportToken, fellowToken: fl.reportToken }],
           ),

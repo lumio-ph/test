@@ -92,7 +92,9 @@ Firms only ever see published checkpoints.
 
 ## G. Send each firm its link
 
-1. **Report links** tab → **Copy** the firm's *Company report* link.
+1. **Report links** tab → **Copy** the firm's *Firm link*. Each fellow has their own report: if the firm
+   sponsors one fellow, the link opens that fellow's report; if it sponsors several, it opens a short
+   page where leadership picks a fellow. (Each fellow's own link is listed there too.)
 2. Email it to that firm's recipients yourself, for example:
 
    > Dear [name],
@@ -112,7 +114,7 @@ Send & access sends this for you.)
 
 1. Open the link.
 2. Enter their email address → **Open report**.
-3. They see their firm's report and can open each fellow's report. Any other firm's link shows
+3. They see their fellow's report (or choose between their fellows). Any other firm's link shows
    "This report link isn't available".
 
 They need **both** their firm's link **and** an email on that firm's list. Anyone who has a
