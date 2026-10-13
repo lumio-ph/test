@@ -13,11 +13,13 @@ import { useReportNav } from './ReportNav';
 export function FirmChooser({ model }: { model: FirmReportModel }) {
   const go = useReportNav();
   const only = model.fellows.length === 1 ? model.fellows[0] : null;
-  const open = (fellowToken: string) =>
-    go({ firmToken: model.firm.reportToken, fellowToken, checkpointId: model.checkpoint.id });
+  const open = (fellowToken: string, replace = false) =>
+    go({ firmToken: model.firm.reportToken, fellowToken, checkpointId: model.checkpoint.id }, { replace });
 
+  // One fellow: go straight to their report. Replacing the history entry
+  // keeps the browser's Back button working.
   useEffect(() => {
-    if (only) open(only.fellow.reportToken);
+    if (only) open(only.fellow.reportToken, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [only?.fellow.reportToken]);
 

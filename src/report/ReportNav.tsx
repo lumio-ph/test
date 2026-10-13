@@ -15,7 +15,7 @@ export interface ReportTarget {
 export const reportPath = ({ firmToken, fellowToken, checkpointId }: ReportTarget) =>
   `/r/${firmToken}${fellowToken ? `/${fellowToken}` : ''}${checkpointId ? `?cp=${checkpointId}` : ''}`;
 
-type Go = (t: ReportTarget) => void;
+type Go = (t: ReportTarget, opts?: { replace?: boolean }) => void;
 const NavContext = createContext<Go | null>(null);
 
 export function ReportNavProvider({ go, children }: { go: Go; children: ReactNode }) {
@@ -25,7 +25,7 @@ export function ReportNavProvider({ go, children }: { go: Go; children: ReactNod
 export function useReportNav(): Go {
   const override = useContext(NavContext);
   const navigate = useNavigate();
-  return override ?? ((t) => navigate(reportPath(t)));
+  return override ?? ((t, opts) => navigate(reportPath(t), { replace: opts?.replace }));
 }
 
 /** True inside the admin preview, where report links switch the preview. */
