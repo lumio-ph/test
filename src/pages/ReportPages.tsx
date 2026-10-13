@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { AuthRequired } from '../data/api';
+import { AuthRequired, Forbidden } from '../data/api';
+import { FailurePanel, Loading } from '../report/Failure';
 import { SignOutLink } from '../report/SignOut';
 import { DEMO } from '../config';
 import logo from '../assets/included-vc-logo.png';
@@ -31,7 +32,8 @@ export function FirmReportPage() {
     if (data) document.title = `Your Fellows' Progress · ${data.firm.name} · Included VC`;
   }, [data]);
   if (error instanceof AuthRequired) return <ToSignIn />;
-  if (loading && !data) return null;
+  if (error && !(error instanceof Forbidden)) return <FailurePanel error={error} />;
+  if (loading && !data) return <Loading />;
   return data ? <FirmChooser model={data} /> : <ReportNotFound />;
 }
 
@@ -49,7 +51,8 @@ export function FellowReportPage() {
       document.title = `${data.metrics.fellow.firstName} ${data.metrics.fellow.lastName} · Progress report · Included VC`;
   }, [data]);
   if (error instanceof AuthRequired) return <ToSignIn />;
-  if (loading && !data) return null;
+  if (error && !(error instanceof Forbidden)) return <FailurePanel error={error} />;
+  if (loading && !data) return <Loading />;
   return data ? <FellowReportView model={data} /> : <ReportNotFound />;
 }
 

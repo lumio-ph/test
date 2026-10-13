@@ -154,6 +154,20 @@ export function createApp(opts: AppOptions) {
     });
   });
 
+  /** Browser errors, so a blank page can be diagnosed from the host's logs. */
+  const clientErrors: number[] = [];
+  api.post('/client-error', (req, res) => {
+    const now = Date.now();
+    while (clientErrors.length && clientErrors[0] < now - 60_000) clientErrors.shift();
+    if (clientErrors.length < 30) {
+      clientErrors.push(now);
+      const b = (req.body ?? {}) as Record<string, unknown>;
+      const t = (v: unknown, n: number) => String(v ?? '').slice(0, n).replace(/\s+/g, ' ');
+      console.log(`[client-error] ${t(b.where, 20)} ${t(b.url, 200)} · ${req.user?.email ?? 'signed out'} · ${t(b.message, 300)} · ${t(b.stack, 800)}`);
+    }
+    res.status(204).end();
+  });
+
   /* ---------- reports ---------- */
 
   /** True when this user may open the firm behind this token. */
