@@ -261,7 +261,7 @@ const sessionRecords: TableSpec<SessionRecord> = {
   columns: [
     { name: 'fellow_id', required: true, help: '' },
     { name: 'session_id', required: true, help: '' },
-    { name: 'attended', required: true, help: 'yes / no' },
+    { name: 'attended', required: true, help: 'yes / no. Blank counts as not attended.' },
     { name: 'feedback_submitted', required: true, help: 'yes / no' },
     { name: 'what_i_learned', help: 'Original response, verbatim' },
     { name: 'what_ill_apply', help: 'Original response, verbatim' },
@@ -284,7 +284,6 @@ const sessionRecords: TableSpec<SessionRecord> = {
     const fellowId = req(c, 'fellow_id');
     const sessionId = req(c, 'session_id');
     if (!fellowId || !sessionId) return null;
-    if (!str(c, 'attended')) issues.push({ row, message: `attended is blank for ${fellowId} / ${sessionId}: counted as not attended` });
     const attended = bool(c, 'attended');
     const feedbackSubmitted = bool(c, 'feedback_submitted');
     if (feedbackSubmitted && !attended)

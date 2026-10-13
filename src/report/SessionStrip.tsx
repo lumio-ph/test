@@ -52,9 +52,6 @@ export function SessionLegend({ hasUpcoming, hasUnrecorded }: { hasUpcoming?: bo
       <span>
         <i style={{ background: 'var(--kelly)' }} /> Attended
       </span>
-      <span>
-        <i style={{ boxShadow: 'inset 0 0 0 2px var(--ink-300)' }} /> Missed
-      </span>
       {hasUnrecorded && (
         <span>
           <i style={{ boxShadow: 'inset 0 0 0 2px var(--ink-300)', background: 'var(--paper)' }} /> Not recorded
