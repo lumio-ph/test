@@ -19,7 +19,12 @@ import { FirmChooser } from '../report/FirmChooser';
 
 function useScrollTop() {
   const { pathname, search } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname, search]);
+  // Braces matter: an effect must not return scrollTo's result. Some browser
+  // extensions make scrollTo return a value, which React would then call as
+  // a cleanup function ("n is not a function") on the next page change.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname, search]);
 }
 
 export function FirmReportPage() {
