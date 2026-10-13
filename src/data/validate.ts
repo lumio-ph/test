@@ -69,7 +69,7 @@ export function validateDataset(d: Dataset): DataIssue[] {
     if (!fellowIds.has(c.fellowId)) err('Capstone', `Capstone row for unknown fellow "${c.fellowId}"`);
     if (c.assessmentStatus === 'complete' && typeof c.assessmentScore !== 'number')
       warn('Capstone', `Assessment complete without a score for "${c.fellowId}"`);
-    if (c.submitted && !c.submissionDate && c.submittedOnTime === undefined)
+    if (c.submitted && c.submissionDeadline && !c.submissionDate && c.submittedOnTime === undefined)
       warn('Capstone', `Submitted without a submission date for "${c.fellowId}" — on-time status unknown`);
   }
 

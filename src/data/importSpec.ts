@@ -312,7 +312,7 @@ const capstones: TableSpec<CapstoneRecord> = {
     { name: 'recorded_at', required: true, help: 'YYYY-MM-DD the row became true' },
     { name: 'submitted', required: true, help: 'yes / no' },
     { name: 'submission_date', help: 'YYYY-MM-DD' },
-    { name: 'submission_deadline', required: true, help: 'YYYY-MM-DD' },
+    { name: 'submission_deadline', help: 'YYYY-MM-DD. Optional; shown to fellows who have not submitted.' },
     { name: 'submitted_on_time', help: 'yes / no. Leave blank to derive from the dates.' },
     { name: 'assessment_status', required: true, help: 'not_started, pending or complete' },
     { name: 'assessment_score', help: 'Only shown when status is complete' },
@@ -336,8 +336,8 @@ const capstones: TableSpec<CapstoneRecord> = {
     const c = { rec, row, issues };
     const fellowId = req(c, 'fellow_id');
     const recordedAt = date(c, 'recorded_at', true);
-    const deadline = date(c, 'submission_deadline', true);
-    if (!fellowId || !recordedAt || !deadline) return null;
+    const deadline = date(c, 'submission_deadline');
+    if (!fellowId || !recordedAt) return null;
     const onTime = str(c, 'submitted_on_time');
     const status = oneOf(c, 'assessment_status', ['not_started', 'pending', 'complete'] as const, 'pending');
     const score = num(c, 'assessment_score');

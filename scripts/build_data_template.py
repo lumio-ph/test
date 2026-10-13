@@ -61,7 +61,7 @@ TABLES = [
    ('recorded_at', 1, 'date', 'The date this row became true'),
    ('submitted', 1, 'yesno', 'yes / no'),
    ('submission_date', 0, 'date', 'Date received'),
-   ('submission_deadline', 1, 'date', ''),
+   ('submission_deadline', 0, 'date', 'Optional. Shown to fellows who have not submitted'),
    ('submitted_on_time', 0, 'yesno', 'Leave blank to work it out from the two dates'),
    ('assessment_status', 1, 'enum:not_started,pending,complete', 'Score and feedback are only shown when complete'),
    ('assessment_score', 0, 'num', 'Leave blank until assessed'),

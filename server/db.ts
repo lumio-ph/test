@@ -171,7 +171,7 @@ export function loadDataset(db: DB): Dataset {
         recordedAt: String(r.recorded_at),
         submitted: b(r.submitted),
         submissionDate: s(r.submission_date),
-        submissionDeadline: String(r.submission_deadline),
+        submissionDeadline: s(r.submission_deadline) || undefined,
         submittedOnTime: nb(r.submitted_on_time),
         assessmentStatus: String(r.assessment_status) as CapstoneRecord['assessmentStatus'],
         assessmentScore: n(r.assessment_score),
@@ -243,7 +243,7 @@ const writers: { [K in Key]: (db: DB, items: Dataset[K]) => void } = {
         c.recordedAt,
         v(c.submitted),
         v(c.submissionDate),
-        c.submissionDeadline,
+        c.submissionDeadline ?? '', // column is NOT NULL in existing databases
         v(c.submittedOnTime),
         c.assessmentStatus,
         v(c.assessmentScore),

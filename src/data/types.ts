@@ -82,7 +82,8 @@ export interface CapstoneRecord {
   recordedAt: ISODate;
   submitted: boolean;
   submissionDate?: ISODate;
-  submissionDeadline: ISODate;
+  /** Optional: without one, an unsubmitted Capstone simply reads "Not submitted". */
+  submissionDeadline?: ISODate;
   /** Explicit override from the source data; otherwise derived from dates. */
   submittedOnTime?: boolean;
   assessmentStatus: AssessmentStatus;

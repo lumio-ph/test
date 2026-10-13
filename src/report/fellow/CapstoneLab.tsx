@@ -32,7 +32,9 @@ export function CapstoneLab({ metrics: m, eyebrow }: { metrics: FellowMetrics; e
         .join(', ')
     : c.submissionDeadline
       ? `Deadline ${formatDate(c.submissionDeadline)}`
-      : 'The Capstone Lab takes place later in the programme.';
+      : c.state === 'no_record'
+        ? 'The Capstone Lab takes place later in the programme.'
+        : '';
 
   return (
     <section id="capstone" className="r-section r-section--paper">
@@ -46,7 +48,7 @@ export function CapstoneLab({ metrics: m, eyebrow }: { metrics: FellowMetrics; e
         <Reveal className="r-capstone r-capstone--simple">
           <div className="r-capstone__status">
             <div className={`r-capstone__state r-capstone__state--${submitted ? 'ok' : 'none'}`}>{word}</div>
-            <p>{detail}</p>
+            {detail && <p>{detail}</p>}
           </div>
           {c.assessment === 'complete' && c.score !== null && (
             <div className="r-capstone__rows">

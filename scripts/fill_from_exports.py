@@ -7,7 +7,11 @@ Fills the report data template from two programme files:
             one Yes/No column per masterclass, plus THE LAB (Capstone)
 
 Usage:
-  python3 scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx
+  python3 scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx [CAPSTONE.txt]
+
+  CAPSTONE.txt (optional): one fellow name per line, everyone who submitted the
+  Capstone (THE LAB). Replaces the register's THE LAB column: listed = submitted,
+  everyone else = not submitted. No dates or deadlines are added.
 
 Rules (nothing is invented):
   - Fellows are everyone in Basic info; firm = organisation. People not on the
@@ -36,6 +40,7 @@ sys.path.insert(0, 'scripts')
 from build_data_template import build  # noqa: E402
 
 FEEDBACK, REGISTER, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+CAPSTONE_LIST = sys.argv[4] if len(sys.argv) > 4 else None
 fb = load_workbook(FEEDBACK, data_only=True)
 reg = load_workbook(REGISTER, data_only=True)
 
@@ -225,9 +230,22 @@ for n in range(len(sessions) + 1, TOTAL_SESSIONS + 1):
 
 # ---------------- Capstone (THE LAB) ----------------
 LAST_HELD = (FIRST_SESSION + timedelta(weeks=len(SESSIONS) - 1)).isoformat()
-capstone, lab_pending = [], 0
+capstone, lab_pending, capstone_unknown = [], 0, []
+listed = None
+if CAPSTONE_LIST:
+    names = [ln.strip() for ln in open(CAPSTONE_LIST, encoding='utf-8') if ln.strip()]
+    listed = {key(n) for n in names}
+    capstone_unknown = [n for n in names if key(n) not in fellow_by_key]
 for f in fellows:
     fk = next(k for k, v in fellow_by_key.items() if v == f['fellow_id'])
+    if listed is not None:
+        capstone.append({
+            'fellow_id': f['fellow_id'], 'recorded_at': LAST_HELD, 'submitted': 'yes' if fk in listed else 'no',
+            'submission_date': '', 'submission_deadline': '', 'submitted_on_time': '',
+            'assessment_status': 'pending' if fk in listed else 'not_started',
+            'assessment_score': '', 'assessment_max_score': '', 'detailed_feedback': '',
+        })
+        continue
     mark = str(register[fk][reg_col[LAB_COL]] or '').strip().lower() if fk in register else ''
     if mark not in ('yes', 'no'):
         lab_pending += 1
@@ -266,8 +284,8 @@ intro = [
     ('Sources', f'{FEEDBACK.split("/")[-1]} · {REGISTER.split("/")[-1]}'),
     ('Loaded', f'{len(fellows)} fellows · {len(firms)} organisations · {len(held)} sessions held · '
                f'{submissions} feedback forms · {len(capstone)} Capstone (THE LAB) results'),
-    ('Still to fill in', f'{blank_attendance} attendance cells ("Update Pending", no feedback) · titles for sessions 5–9 · '
-                         'Capstone deadline'),
+    ('Still to fill in', f'{blank_attendance} attendance cells ("Update Pending", no feedback) · titles for sessions 5–9'
+                         + ('' if listed is not None else ' · Capstone deadline')),
     ('Kept as on the site', 'Logos, report links and recipients: logo_url and report_token are blank, and there is '
                             'no authorised_users tab, so uploading this file does not change them.'),
     ('Not included', 'Notes written to facilitators, the recommend score, decision journals and onboarding.'),
@@ -286,3 +304,5 @@ print(f'fellows={len(fellows)} firms={len(firms)} held={len(held)} submissions={
 print('included but not on register:', left_out)
 print('on register, not in Basic info:', not_in_basic)
 print('feedback names not matched:', sorted(unmatched))
+if listed is not None:
+    print('capstone submitted:', sum(1 for c in capstone if c['submitted'] == 'yes'), 'not matched:', capstone_unknown)

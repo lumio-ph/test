@@ -150,7 +150,7 @@ export function capstoneAt(
   const submitted = latest.submitted;
   const state: CapstoneView['state'] = submitted
     ? 'submitted'
-    : asOf > latest.submissionDeadline
+    : !latest.submissionDeadline || asOf > latest.submissionDeadline
       ? 'not_submitted'
       : 'not_yet_submitted';
 
@@ -158,7 +158,7 @@ export function capstoneAt(
   if (submitted) {
     submittedOnTime =
       latest.submittedOnTime ??
-      (latest.submissionDate ? latest.submissionDate <= latest.submissionDeadline : null);
+      (latest.submissionDate && latest.submissionDeadline ? latest.submissionDate <= latest.submissionDeadline : null);
   } else if (state === 'not_submitted') {
     submittedOnTime = false;
   }
@@ -168,7 +168,7 @@ export function capstoneAt(
     state,
     submittedOnTime,
     submissionDate: latest.submissionDate ?? null,
-    submissionDeadline: latest.submissionDeadline,
+    submissionDeadline: latest.submissionDeadline ?? null,
     assessment: submitted ? latest.assessmentStatus : 'not_started',
     // Never show a score or feedback unless the assessment is marked complete.
     score: complete && typeof latest.assessmentScore === 'number' ? latest.assessmentScore : null,

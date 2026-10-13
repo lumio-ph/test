@@ -124,6 +124,15 @@ describe('edge cases', () => {
     expect(v.state).toBe('not_submitted');
     expect(v.submittedOnTime).toBe(false);
   });
+
+  it('works without a deadline: submitted or not submitted, no on-time verdict', () => {
+    const rec = (submitted: boolean) =>
+      capstoneAt([{ fellowId: 'x', recordedAt: '2026-01-01', submitted, assessmentStatus: 'pending' }], 'x', '2026-02-01');
+    expect(rec(true).state).toBe('submitted');
+    expect(rec(true).submittedOnTime).toBe(null);
+    expect(rec(false).state).toBe('not_submitted');
+    expect(rec(false).submissionDeadline).toBe(null);
+  });
 });
 
 describe('cohort benchmarks', () => {
