@@ -262,13 +262,12 @@ for f in fellows:
         'submission_deadline': 'Placeholder: the register has no deadline. Enter the real Capstone deadline.'}
 
 held = [s['session_id'] for s in sessions if s['status'] == 'held']
+# One checkpoint covering every session held, so reports show no checkpoint
+# menu. The id stays cp-2026-2 so links made for it keep working.
 checkpoints = [
-    {'checkpoint_id': 'cp-2026-1', 'cohort_id': COHORT, 'checkpoint_title': 'Checkpoint 1',
-     'reporting_date': sessions[3]['session_date'], 'session_ids': ';'.join(held[:4]), 'status': 'published'},
-    {'checkpoint_id': 'cp-2026-2', 'cohort_id': COHORT, 'checkpoint_title': 'Checkpoint 2',
-     'reporting_date': LAST_HELD, 'session_ids': ';'.join(held), 'status': 'draft'},
+    {'checkpoint_id': 'cp-2026-2', 'cohort_id': COHORT, 'checkpoint_title': 'Progress report',
+     'reporting_date': LAST_HELD, 'session_ids': ';'.join(held), 'status': 'published'},
 ]
-flags[('checkpoints', 1)] = {'status': 'Draft until you have checked it. Publish in the admin (Send & access).'}
 
 TABLE_ROWS = {
     'cohorts': [{'cohort_id': COHORT, 'cohort_name': 'Africa Investor Fellowship 2026',

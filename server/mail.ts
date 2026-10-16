@@ -73,10 +73,10 @@ export function reportInvitationEmail(opts: {
     opts.fellowNames.length <= 1
       ? opts.fellowNames.join('')
       : `${opts.fellowNames.slice(0, -1).join(', ')} and ${opts.fellowNames[opts.fellowNames.length - 1]}`;
-  const subject = `Your fellows' progress: ${opts.firmName} · ${opts.checkpointTitle}`;
+  const subject = `Your fellows' progress report: ${opts.firmName}`;
   const text = `${greeting}
 
-The ${opts.checkpointTitle} progress report for ${opts.firmName} is ready. It shows how ${fellows} ${opts.fellowNames.length === 1 ? 'is' : 'are'} attending, engaging and applying what they are learning on the Investment Cohort.
+The progress report for ${opts.firmName} is ready. It shows how ${fellows} ${opts.fellowNames.length === 1 ? 'is' : 'are'} attending, engaging and applying what they are learning on the Investment Cohort.
 
 Open your private report:
 ${opts.link}
@@ -86,7 +86,7 @@ No sign-in is needed. The report is private to your firm's leadership; please do
 Included VC Africa`;
   const html = frame(`<p style="font-size:16px;line-height:1.6;margin:0 0 16px">${esc(greeting)}</p>
 <h1 style="font-size:28px;line-height:1.1;font-weight:900;letter-spacing:-.02em;margin:0 0 16px">Your fellows' progress</h1>
-<p style="font-size:16px;line-height:1.6;margin:0 0 24px">The ${esc(opts.checkpointTitle)} progress report for <strong>${esc(opts.firmName)}</strong> is ready. It shows how ${esc(fellows)} ${opts.fellowNames.length === 1 ? 'is' : 'are'} attending, engaging and applying what they are learning on the Investment Cohort.</p>
+<p style="font-size:16px;line-height:1.6;margin:0 0 24px">The progress report for <strong>${esc(opts.firmName)}</strong> is ready. It shows how ${esc(fellows)} ${opts.fellowNames.length === 1 ? 'is' : 'are'} attending, engaging and applying what they are learning on the Investment Cohort.</p>
 <p style="margin:0 0 28px"><a href="${esc(opts.link)}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 22px;border-radius:999px">Open your report →</a></p>
 <p style="font-size:14px;line-height:1.6;color:#5C5C5C;margin:0">No sign-in is needed. The report is private to your firm's leadership; please don't forward this link.</p>`);
   return { to: opts.to, subject, text, html };
