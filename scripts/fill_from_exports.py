@@ -14,8 +14,9 @@ Usage:
   everyone else = not submitted. No dates or deadlines are added.
 
 Rules (nothing is invented):
-  - Fellows are everyone in Basic info; firm = organisation. People not on the
-    register get attendance from their feedback only (other cells highlighted).
+  - Fellows are the people on the register; firm = organisation in Basic info.
+    Anyone in Basic info but not on the register has left the cohort and is
+    left out (their feedback too).
   - attended: register "Yes" or "Yes - not all of it" = yes, "No" = no.
     "Update Pending" = yes if the fellow sent feedback for that session,
     otherwise left blank and highlighted.
@@ -132,7 +133,8 @@ for r in basic.iter_rows(min_row=2, values_only=True):
         continue
     full = tidy_name(r[col['Full Name']])
     if key(full) not in register:
-        left_out.append(full)  # still included; reported below
+        left_out.append(full)  # no longer in the cohort
+        continue
     org = ' '.join(str(r[col['Your Organisation name']]).split())
     if org not in firm_ids:
         firm_ids[org] = 'firm-' + slug(org)
@@ -301,7 +303,7 @@ wb.save(OUT)
 print(f'fellows={len(fellows)} firms={len(firms)} held={len(held)} submissions={submissions} '
       f'attendance_blank={blank_attendance} pending_but_feedback={pending_with_feedback} conflicts={len(conflicts)} '
       f'capstone={len(capstone)} lab_pending={lab_pending}')
-print('included but not on register:', left_out)
+print('left out (not on register):', left_out)
 print('on register, not in Basic info:', not_in_basic)
 print('feedback names not matched:', sorted(unmatched))
 if listed is not None:
