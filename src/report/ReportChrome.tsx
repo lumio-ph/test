@@ -3,7 +3,7 @@ import logoInverse from '../assets/included-vc-logo-inverse.png';
 import type { ReportContext } from '../data/repository';
 import { formatDate, formatMonthYear } from './format';
 import { FirmMark } from './primitives';
-import { scrollToSection, useReportNav } from './ReportNav';
+import { scrollToSection, useInPreview, useReportNav } from './ReportNav';
 
 export function DemoRibbon({ show }: { show: boolean }) {
   if (!show) return null;
@@ -28,6 +28,8 @@ export function ReportHeader({
   fellowToken?: string;
 }) {
   const go = useReportNav();
+  // Partners always see the latest report; only the admin preview can switch.
+  const inPreview = useInPreview();
   return (
     <header className="r-header">
       <div className="r-header__bar">
@@ -42,7 +44,7 @@ export function ReportHeader({
           </nav>
         )}
         <div className="r-header__tools">
-          {ctx.checkpoints.length > 1 && (
+          {inPreview && ctx.checkpoints.length > 1 && (
             <label className="r-checkpoint">
               <span className="sr-only">Reporting checkpoint</span>
               <select
@@ -75,7 +77,7 @@ export function ReportFooter({ ctx }: { ctx: ReportContext }) {
       <div className="r-footer__inner">
         <img src={logoInverse} alt="Included VC Africa" />
         <div className="r-footer__meta">
-          {ctx.cohort.name} · {ctx.checkpoint.title} · Data as at {formatDate(ctx.checkpoint.reportingDate)}
+          {ctx.cohort.name} · Data as at {formatDate(ctx.checkpoint.reportingDate)}
           <br />
           Confidential. Prepared for the leadership of {ctx.firm.name} only.
           {ctx.isSample && (

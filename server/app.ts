@@ -189,17 +189,22 @@ export function createApp(opts: AppOptions) {
   };
   const notThrottled = (req: Request, res: Response, next: NextFunction) =>
     !req.user && missCount(req.ip ?? '') >= MISS_LIMIT ? res.status(429).json({ error: 'rate_limited' }) : next();
+  // Partners always get the latest published checkpoint and no list of
+  // others; only admins can pick a checkpoint (?cp=) or see drafts.
+  const isAdmin = (req: Request) => req.user?.role === 'admin';
   const reportQuery = (req: Request) => ({
-    checkpointId: typeof req.query.cp === 'string' ? req.query.cp : undefined,
-    includeDrafts: req.user?.role === 'admin' && req.query.drafts === '1',
+    checkpointId: isAdmin(req) && typeof req.query.cp === 'string' ? req.query.cp : undefined,
+    includeDrafts: isAdmin(req) && req.query.drafts === '1',
   });
+  const forViewer = <T extends { checkpoint: unknown; checkpoints: unknown[] }>(req: Request, model: T): T =>
+    isAdmin(req) ? model : { ...model, checkpoints: [model.checkpoint] };
 
   api.get('/reports/:firmToken', notThrottled, async (req, res) => {
     const user = req.user ?? null;
     const model = await repo.getFirmReport(req.params.firmToken, reportQuery(req));
     if (!model) return notFound(req, res);
     audit(db, 'report_viewed', user, `${model.firm.name} · ${model.checkpoint.title}`);
-    res.json(model);
+    res.json(forViewer(req, model));
   });
 
   api.get('/reports/:firmToken/:fellowToken', notThrottled, async (req, res) => {
@@ -207,7 +212,7 @@ export function createApp(opts: AppOptions) {
     const model = await repo.getFellowReport(req.params.firmToken, req.params.fellowToken, reportQuery(req));
     if (!model) return notFound(req, res);
     audit(db, 'report_viewed', user, `${model.firm.name} · ${model.metrics.fellow.firstName} ${model.metrics.fellow.lastName} · ${model.checkpoint.title}`);
-    res.json(model);
+    res.json(forViewer(req, model));
   });
 
   /* ---------- admin ---------- */

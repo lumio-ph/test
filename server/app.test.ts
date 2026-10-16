@@ -179,6 +179,16 @@ describe('firm isolation', () => {
     expect((await get('/api/admin/dataset', cookie)).status).toBe(401);
   });
 
+  it('gives partners only the latest published checkpoint, with no way to switch', async () => {
+    const latest = (await (await get(`/api/reports/${EXAMPLE}`)).json()) as { checkpoint: { id: string } };
+    const body = (await (await get(`/api/reports/${EXAMPLE}?cp=cp-2026-1`)).json()) as {
+      checkpoint: { id: string };
+      checkpoints: unknown[];
+    };
+    expect(body.checkpoint.id).toBe(latest.checkpoint.id);
+    expect(body.checkpoints).toHaveLength(1);
+  });
+
   it('pauses an address that tries many wrong links', async () => {
     for (let i = 0; i < 30; i++) await get(`/api/reports/guess${i}`);
     expect((await get(`/api/reports/${EXAMPLE}`)).status).toBe(429);
