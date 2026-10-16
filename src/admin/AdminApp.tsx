@@ -255,14 +255,33 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+/** One row per fellow: link, company, name. CSV with a BOM so Excel keeps accents. */
+function downloadFellowLinks(data: Dataset) {
+  const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const rows = [['Link', 'Company', 'Fellow']];
+  for (const f of reportFirms(data))
+    for (const fl of firmFellows(data, f.id))
+      rows.push([absoluteLink({ firmToken: f.reportToken, fellowToken: fl.reportToken }), f.name, fullName(fl)]);
+  const csv = '\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'fellow-report-links.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 function LinksTab({ data }: { data: Dataset }) {
   return (
     <div className="a-page">
       <h2>Report links</h2>
       <p>
-        Each firm has one private company report, and each fellow an individual report reachable only through their
-        own firm’s link. Links always open the latest published checkpoint; add <code>?cp=checkpoint-id</code> to pin an
-        earlier one. In the prototype a link alone opens the report — Phase 3 adds sign-in for authorised recipients.
+        Each fellow has an individual report, reachable only through their own firm’s link. Links open without sign-in
+        and always show the latest published checkpoint; add <code>?cp=checkpoint-id</code> to pin an earlier one.
+      </p>
+      <p>
+        <button type="button" className="a-btn a-btn--primary" onClick={() => downloadFellowLinks(data)}>
+          Download spreadsheet of fellow links
+        </button>
       </p>
       {reportFirms(data).map((f) => {
         const rows: Array<[string, string, ReportTarget]> = [

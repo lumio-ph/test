@@ -95,6 +95,8 @@ Firms only ever see published checkpoints.
 1. **Report links** tab → **Copy** the firm's *Firm link*. Each fellow has their own report: if the firm
    sponsors one fellow, the link opens that fellow's report; if it sponsors several, it opens a short
    page where leadership picks a fellow. (Each fellow's own link is listed there too.)
+   To get every fellow's link at once, press **Download spreadsheet of fellow links** at the top of
+   **Report links**: one row per fellow with the link, company and fellow's name (opens in Excel).
 2. Email it to that firm's recipients yourself, for example:
 
    > Dear [name],
