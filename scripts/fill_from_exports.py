@@ -7,7 +7,14 @@ Fills the report data template from two programme files:
             one Yes/No column per masterclass, plus THE LAB (Capstone)
 
 Usage:
-  python3 scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx [CAPSTONE.txt]
+  python3 scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx [CAPSTONE.txt] [--forms FORMS.xlsx]
+
+  --forms FORMS.xlsx (optional): a register whose "NOTE (Typeform)" columns say
+  whether each fellow submitted the feedback form for each session. With it the
+  strict rules apply: attended only when the register says "Yes" or "Yes - not
+  all of it" ("Update Pending" and "No" = not attended), and a feedback form
+  counts only when FORMS says "Yes" ("Update Pending" and "No" = not submitted;
+  "Y/NO" = submitted only if the form is in the feedback export).
 
   CAPSTONE.txt (optional): one fellow name per line, everyone who submitted the
   Capstone (THE LAB). Replaces the register's THE LAB column: listed = submitted,
@@ -40,8 +47,14 @@ from openpyxl import load_workbook
 sys.path.insert(0, 'scripts')
 from build_data_template import build  # noqa: E402
 
-FEEDBACK, REGISTER, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
-CAPSTONE_LIST = sys.argv[4] if len(sys.argv) > 4 else None
+args = sys.argv[1:]
+FORMS = None
+if '--forms' in args:
+    i = args.index('--forms')
+    FORMS = args[i + 1]
+    del args[i:i + 2]
+FEEDBACK, REGISTER, OUT = args[0], args[1], args[2]
+CAPSTONE_LIST = args[3] if len(args) > 3 else None
 fb = load_workbook(FEEDBACK, data_only=True)
 reg = load_workbook(REGISTER, data_only=True)
 
@@ -116,12 +129,27 @@ def norm_header(h):
     return ' '.join(str(h or '').split())
 
 
-# ---------------- register ----------------
-ws = reg['INVAI26 - Mandatory']
-reg_rows = list(ws.iter_rows(values_only=True))
-reg_hdr = [norm_header(h) for h in reg_rows[1]]
-reg_col = {h: i for i, h in enumerate(reg_hdr) if h}
-register = {key(r[0]): r for r in reg_rows[2:] if r and r[0]}
+# ---------------- register(s) ----------------
+def read_register(wb):
+    """First sheet; header row is the one starting with "Name"."""
+    rows = list(wb.worksheets[0].iter_rows(values_only=True))
+    h = next(i for i, r in enumerate(rows[:10]) if r and str(r[0]).strip() == 'Name')
+    cols = {norm_header(x): i for i, x in enumerate(rows[h]) if x}
+    return cols, {key(r[0]): r for r in rows[h + 1:] if r and r[0]}
+
+
+reg_col, register = read_register(reg)
+forms_col, forms = read_register(load_workbook(FORMS, data_only=True)) if FORMS else ({}, {})
+# The feedback-form column for each session, found by its date in the header.
+FORM_DATES = {1: '17th Aug', 2: '24th Aug', 3: '31st Aug', 4: '7th Sep', 5: '14th Sept',
+              6: '21st Sep', 7: '28th Sep', 8: '5th Oct', 9: '12th Oct'}
+form_cols = {}
+if FORMS:
+    for n, d in FORM_DATES.items():
+        found = [h for h in forms_col if h.startswith('NOTE (Typeform)') and d in h]
+        assert len(found) == 1, f'feedback-form column for session {n}: {found}'
+        form_cols[n] = forms_col[found[0]]
+yno_forms, form_not_attended = [], []
 
 # ---------------- fellows and firms (Basic info, register members only) ----------------
 basic = fb['Basic info']
@@ -190,7 +218,16 @@ for n, title, facilitator, fb_name, reg_cols, learned_cols, apply_cols in SESSIO
         fk = next(k for k, v in fellow_by_key.items() if v == f['fellow_id'])
         marks = [str(register[fk][reg_col[c]] or '').strip().lower() for c in reg_cols] if fk in register else []
         subs = feedback.get((fb_name, f['fellow_id']), [])
-        if any(m.startswith('yes') for m in marks):
+        if FORMS:
+            attended = 'yes' if any(m.startswith('yes') for m in marks) else 'no'
+            form = str(forms[fk][form_cols[n]] or '').strip().lower() if fk in forms else ''
+            if form == 'y/no':
+                yno_forms.append((f['fellow_id'], sid, bool(subs)))
+            submitted = form == 'yes' or (form == 'y/no' and bool(subs))
+            if submitted and attended != 'yes':
+                form_not_attended.append((f['fellow_id'], sid))
+                submitted = False  # a form only counts for a session attended
+        elif any(m.startswith('yes') for m in marks):
             attended = 'yes'
         elif subs:
             attended = 'yes'
@@ -202,13 +239,15 @@ for n, title, facilitator, fb_name, reg_cols, learned_cols, apply_cols in SESSIO
             attended = 'no'
         else:
             attended = ''
+        if not FORMS:
+            submitted = bool(subs)
         learned = [t for s in subs for i in learned_cols if (t := fix_text(s[i]))]
         apply = [t for s in subs for i in apply_cols if (t := fix_text(s[i]))]
         rating = next((x for s in subs if (x := rating_of(s[RATING_COL])) is not None), None)
         submitted_at = next((str(s[SUBMITTED_COL])[:10] for s in subs if s[SUBMITTED_COL]), '')
         records.append({
             'fellow_id': f['fellow_id'], 'session_id': sid, 'attended': attended,
-            'feedback_submitted': 'yes' if subs else 'no',
+            'feedback_submitted': 'yes' if submitted else 'no',
             'what_i_learned': '\n\n'.join(learned), 'what_ill_apply': '\n\n'.join(apply),
             'feedback_submitted_at': submitted_at,
             'session_rating': '' if rating is None else str(rating),
@@ -305,5 +344,10 @@ print(f'fellows={len(fellows)} firms={len(firms)} held={len(held)} submissions={
 print('left out (not on register):', left_out)
 print('on register, not in Basic info:', not_in_basic)
 print('feedback names not matched:', sorted(unmatched))
+if FORMS:
+    att = [r for r in records if r['attended'] == 'yes']
+    print('forms counted:', sum(1 for r in att if r['feedback_submitted'] == 'yes'), 'of', len(att), 'attended')
+    print('Y/NO forms (submitted?):', yno_forms)
+    print('form Yes but session not attended (not counted):', form_not_attended)
 if listed is not None:
     print('capstone submitted:', sum(1 for c in capstone if c['submitted'] == 'yes'), 'not matched:', capstone_unknown)
