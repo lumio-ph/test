@@ -12,7 +12,8 @@ Usage:
   --forms FORMS.xlsx (optional): a register whose "NOTE (Typeform)" columns say
   whether each fellow submitted the feedback form for each session. With it the
   strict rules apply: attended only when the register says "Yes" or "Yes - not
-  all of it" ("Update Pending" and "No" = not attended), and a feedback form
+  all of it", or the fellow sent feedback for that session (Checkpoint form
+  "Yes" or a form in the feedback export); otherwise not attended. A feedback form
   counts only when FORMS says "Yes" ("Update Pending" and "No" = not submitted;
   "Y/NO" = submitted only if the form is in the feedback export).
 
@@ -224,9 +225,10 @@ for n, title, facilitator, fb_name, reg_cols, learned_cols, apply_cols in SESSIO
             if form == 'y/no':
                 yno_forms.append((f['fellow_id'], sid, bool(subs)))
             submitted = form == 'yes' or (form == 'y/no' and bool(subs))
-            if submitted and attended != 'yes':
-                form_not_attended.append((f['fellow_id'], sid))
-                submitted = False  # a form only counts for a session attended
+            # Sending feedback for a session means they attended it.
+            if attended != 'yes' and (submitted or subs):
+                form_not_attended.append((f['fellow_id'], sid, marks, form, bool(subs)))
+                attended = 'yes'
         elif any(m.startswith('yes') for m in marks):
             attended = 'yes'
         elif subs:
@@ -348,6 +350,6 @@ if FORMS:
     att = [r for r in records if r['attended'] == 'yes']
     print('forms counted:', sum(1 for r in att if r['feedback_submitted'] == 'yes'), 'of', len(att), 'attended')
     print('Y/NO forms (submitted?):', yno_forms)
-    print('form Yes but session not attended (not counted):', form_not_attended)
+    print('marked attended because of feedback:', form_not_attended)
 if listed is not None:
     print('capstone submitted:', sum(1 for c in capstone if c['submitted'] == 'yes'), 'not matched:', capstone_unknown)
