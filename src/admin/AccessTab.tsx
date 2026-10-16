@@ -77,8 +77,8 @@ export function AccessTab({ data }: { data: Dataset }) {
     <div className="a-page">
       <h2>Send & access</h2>
       <p>
-        Partners open their firm’s private link and enter their email address. They get in only if that email is on the
-        firm’s recipient list, and they see only their own firm’s report. Anyone else gets nothing, even with the link.
+        Partners open their firm’s private link with no sign-in. Each link is long and unguessable and opens only that
+        firm’s reports, so anyone who has the link can see them: send it only to the firm’s leadership.
       </p>
 
       {notice && (
@@ -162,8 +162,8 @@ export function AccessTab({ data }: { data: Dataset }) {
           </table>
         </div>
         <p style={{ marginTop: 14, marginBottom: 0 }}>
-          To test the partner experience yourself, add your own email as a <code>firm_leader</code> for a firm in{' '}
-          the <code>authorised_users</code> tab of the data workbook, upload it, then press “Email link” (or just open the firm’s link and enter your email).
+          To test the partner experience yourself, open a firm’s link in a private browser window. The recipient list is
+          only used for the “Email link” button.
         </p>
       </div>
 

@@ -1622,6 +1622,10 @@
   color: var(--gold);
 }
 
+.r-capstone__state--missed {
+  color: #ff5a4f; /* red: Capstone not submitted */
+}
+
 .r-capstone__state--none {
   color: rgba(255, 255, 255, 0.6);
 }

@@ -27,8 +27,7 @@ Day-to-day use is described step by step in [HOW_TO_USE.md](HOW_TO_USE.md).
 
 - **Admin:** `/admin`, sign in with an `ADMIN_EMAILS` address (default
   `ops@included.vc`) and `ADMIN_PASSWORD`.
-- **Partners:** open their firm's link (Admin → Report links) and enter an email
-  that is on that firm's recipient list. No code or password.
+- **Partners:** open their firm's link (Admin → Report links). No sign-in.
 
 ## 3. Email (optional)
 

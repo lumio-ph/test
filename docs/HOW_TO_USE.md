@@ -42,7 +42,7 @@ Start with the **Start here** tab. Fill in the **yellow cells** (hover over one 
 1. **attendance_feedback → `attended`**: 113 cells, one for each fellow who didn't send feedback
    for a session. Enter `yes` or `no` from the attendance register. A blank counts as *not attended*.
 2. **sessions**: real titles for sessions 5–8 (currently "Masterclass with Aditi" etc.) and check the dates.
-3. **authorised_users**: one row per person at each firm who should see that firm's report:
+3. **authorised_users** (optional, only for the **Email link** button): one row per person at each firm:
    - `user_id`: any unique label, e.g. `u-madica-1`
    - `email`: the person's email
    - `firm_id`: pick from the dropdown (it matches the **firms** tab)
@@ -102,8 +102,8 @@ Firms only ever see published checkpoints.
    > Your private progress report for the Africa Investor Fellowship is ready:
    > [link]
    >
-   > When the page asks, enter this email address. The report is for [firm]'s
-   > leadership only, so please don't forward the link.
+   > No sign-in is needed. The report is for [firm]'s leadership only, so
+   > please don't forward the link.
 
 (If an email service is connected — `SMTP_URL` in Render — the **Email link** button on
 Send & access sends this for you.)
@@ -112,13 +112,12 @@ Send & access sends this for you.)
 
 ## H. What partners do
 
-1. Open the link.
-2. Enter their email address → **Open report**.
-3. They see their fellow's report (or choose between their fellows). Any other firm's link shows
+1. Open the link. No sign-in, email or password.
+2. They see their fellow's report (or choose between their fellows). A mistyped link shows
    "This report link isn't available".
 
-They need **both** their firm's link **and** an email on that firm's list. Anyone who has a
-forwarded link and knows a listed email can also get in, so ask recipients not to forward it.
+The link is the only key: anyone who has it can open that firm's reports, so send it only to
+the firm's leadership and ask them not to forward it. Only the admin needs to sign in.
 
 ---
 

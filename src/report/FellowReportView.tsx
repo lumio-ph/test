@@ -25,15 +25,8 @@ export function FellowReportView({ model }: { model: FellowReportModel }) {
       <main>
         <FellowHero model={model} />
         <AttendanceSection model={model} />
+        <CapstoneLab metrics={m} eyebrow="02 · Capstone Lab" />
         <LearningJourney model={model} />
-        <CapstoneLab
-          metrics={m}
-          eyebrow={
-            m.lines.some((l) => l.whatILearned || l.whatIllApply)
-              ? "03 · Capstone Lab"
-              : "02 · Capstone Lab"
-          }
-        />
         <ReportClosing
           title={<>From the room to the work.</>}
           pillars={[

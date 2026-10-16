@@ -4,8 +4,8 @@ A private, personalised progress report for the leadership of each investment
 firm that sponsors fellows on the Investment Cohort, with an individual report
 for every fellow. One report design, driven entirely by data.
 
-Partners open their firm's private link, enter their email address, and see
-only their own firm's report. The Included VC team
+Partners open their firm's private link, with no sign-in, and see only their
+own firm's report. The Included VC team
 manages data, checkpoints, recipients and invitations in the admin.
 
 > The repository ships with **demonstration data** (Example Capital, Horizon
@@ -19,7 +19,7 @@ manages data, checkpoints, recipients and invitations in the admin.
 | Company report | Introduction, sponsored fellows at a glance, their own words on what they'll apply, comparison with the cohort, closing |
 | Individual report | 01 Participation & attendance · 02 Feedback & engagement · 03 Learning journey · 04 Capstone Lab · closing |
 | Checkpoints | Switch between reporting checkpoints; earlier reports stay as issued |
-| Sign-in | Partners: firm link + email on that firm's list. Admins: email + password. Enforced on the server |
+| Access | Partners: the firm's private link, no sign-in. Admins: email + password. Enforced on the server |
 | Admin (`/admin`) | Preview reports at any width, publish checkpoints, email each firm its link, outbox, activity log, data checks, CSV import, recipients |
 
 Sample reports: **Example Capital** (Alexandra Smith, Daniel Mensah) and

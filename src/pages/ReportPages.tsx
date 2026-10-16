@@ -100,12 +100,13 @@ export function ReportNotFound() {
             The link may have been mistyped, or it belongs to a different firm. Please use the private link emailed to
             you by the Included VC programme team, or contact them for help.
           </p>
-          <p style={{ marginTop: 32, display: 'flex', gap: 24, justifyContent: 'center' }}>
-            <Link to="/" className="r-mono">
-              {DEMO ? 'Prototype index' : 'Go to my report'}
-            </Link>
-            <SignOutLink />
-          </p>
+          {DEMO && (
+            <p style={{ marginTop: 32 }}>
+              <Link to="/" className="r-mono">
+                Prototype index
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

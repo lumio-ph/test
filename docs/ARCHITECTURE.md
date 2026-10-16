@@ -60,11 +60,12 @@ The self-contained demo (`npm run build:single`) uses the same routes behind
 Enforced by the server on every request (`server/app.ts`), covered by
 `server/app.test.ts`:
 
-- **Sign-in (partners)**: email only, entered on the firm's private link.
-  Access needs both the link token and an email on that firm's recipient list
-  (`authorised_users`, role `firm_leader`). No code or password, by design
-  choice: whoever holds a forwarded link and knows a listed email can open it.
-  Attempts are rate-limited per IP and per link, and refusals are logged.
+- **Partners**: no sign-in. The firm's private link (an unguessable token) opens
+  that firm's reports; a fellow token opens only under its own firm's token;
+  drafts are admin-only; an address that tries 30 wrong links in 10 minutes is
+  paused, and wrong links are logged. Whoever holds a link can open it, by
+  design. The partner email sign-in still exists but reports don't require it;
+  `authorised_users` is used for the Email link button.
 - **Sign-in (admins)**: an `ADMIN_EMAILS` address plus `ADMIN_PASSWORD`.
   Admin sign-in is off until the password is set.
 - **Sessions**: random 256-bit token in an HttpOnly, SameSite=Lax cookie

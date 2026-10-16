@@ -72,8 +72,12 @@ async function signInAdmin(email = ADMIN, password = ADMIN_PASSWORD) {
 }
 
 describe('signing in', () => {
-  it('blocks reports without a session', async () => {
-    expect((await get(`/api/reports/${EXAMPLE}`)).status).toBe(401);
+  it('opens a report link without signing in, but not a wrong or draft one', async () => {
+    expect((await get(`/api/reports/${EXAMPLE}`)).status).toBe(200);
+    expect((await get(`/api/reports/${EXAMPLE}/${ALEXANDRA}`)).status).toBe(200);
+    expect((await get('/api/reports/not-a-real-token')).status).toBe(404);
+    expect((await get(`/api/reports/${EXAMPLE}?cp=cp-2026-2&drafts=1`)).status).toBe(200);
+    expect((await get('/api/admin/dataset')).status).toBe(401);
   });
 
   it('lets a firm leader in with just their email on their own firm link', async () => {
@@ -129,16 +133,13 @@ describe('firm isolation', () => {
     expect((await get(`/api/reports/${EXAMPLE}/${ALEXANDRA}`, example)).status).toBe(200);
   });
 
-  it("cannot open another firm's report or fellows by changing the URL", async () => {
-    expect((await get(`/api/reports/${HORIZON}`, example)).status).toBe(404);
-    expect((await get(`/api/reports/${HORIZON}/${AMARA}`, example)).status).toBe(404);
+  it("cannot reach another firm's fellows by changing the fellow part of the URL", async () => {
     // Own firm token + another firm's fellow token
     expect((await get(`/api/reports/${EXAMPLE}/${AMARA}`, example)).status).toBe(404);
+    expect((await get(`/api/reports/${EXAMPLE}/${AMARA}`)).status).toBe(404);
+    expect((await get(`/api/reports/${HORIZON}/${ALEXANDRA}`)).status).toBe(404);
     // Firm that receives no report
-    expect((await get(`/api/reports/${OTHER_COHORT_FIRM}`, example)).status).toBe(404);
-    // And the other way round
-    expect((await get(`/api/reports/${EXAMPLE}`, horizon)).status).toBe(404);
-    expect((await get(`/api/reports/${EXAMPLE}/${ALEXANDRA}`, horizon)).status).toBe(404);
+    expect((await get(`/api/reports/${OTHER_COHORT_FIRM}`)).status).toBe(404);
   });
 
   it("never sends another firm's data in a report response", async () => {
@@ -168,13 +169,19 @@ describe('firm isolation', () => {
     const { cookie } = await signIn('coo@example-capital.demo', EXAMPLE); // invited → active on first sign-in
     expect((await get(`/api/reports/${EXAMPLE}`, cookie)).status).toBe(200);
     db.prepare("update users set access_status = 'revoked' where email = 'coo@example-capital.demo'").run();
-    expect((await get(`/api/reports/${EXAMPLE}`, cookie)).status).toBe(401);
+    expect((await get('/api/admin/dataset', cookie)).status).toBe(401);
   });
 
   it('sign-out ends the session', async () => {
     const { cookie } = await signIn(EXAMPLE_LEADER);
+    expect((await get('/api/admin/dataset', cookie)).status).toBe(403);
     await post('/api/auth/sign-out', {}, cookie);
-    expect((await get(`/api/reports/${EXAMPLE}`, cookie)).status).toBe(401);
+    expect((await get('/api/admin/dataset', cookie)).status).toBe(401);
+  });
+
+  it('pauses an address that tries many wrong links', async () => {
+    for (let i = 0; i < 30; i++) await get(`/api/reports/guess${i}`);
+    expect((await get(`/api/reports/${EXAMPLE}`)).status).toBe(429);
   });
 });
 

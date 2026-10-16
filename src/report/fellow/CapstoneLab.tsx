@@ -37,7 +37,7 @@ export function CapstoneLab({ metrics: m, eyebrow }: { metrics: FellowMetrics; e
         : '';
 
   return (
-    <section id="capstone" className="r-section r-section--paper">
+    <section id="capstone" className="r-section">
       <div className="r-wrap">
         <Reveal>
           <div className="r-rule" />
@@ -47,7 +47,7 @@ export function CapstoneLab({ metrics: m, eyebrow }: { metrics: FellowMetrics; e
         </Reveal>
         <Reveal className="r-capstone r-capstone--simple">
           <div className="r-capstone__status">
-            <div className={`r-capstone__state r-capstone__state--${submitted ? 'ok' : 'none'}`}>{word}</div>
+            <div className={`r-capstone__state r-capstone__state--${submitted ? 'ok' : c.state === 'no_record' ? 'none' : 'missed'}`}>{word}</div>
             {detail && <p>{detail}</p>}
           </div>
           {c.assessment === 'complete' && c.score !== null && (

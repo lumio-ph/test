@@ -91,8 +91,6 @@ export function createApp(opts: AppOptions) {
     next();
   });
 
-  const requireUser = (req: Request, res: Response, next: NextFunction) =>
-    req.user ? next() : res.status(401).json({ error: 'sign_in_required' });
   const requireAdmin = (req: Request, res: Response, next: NextFunction) =>
     !req.user ? res.status(401).json({ error: 'sign_in_required' }) : req.user.role !== 'admin' ? res.status(403).json({ error: 'forbidden' }) : next();
 
@@ -170,38 +168,44 @@ export function createApp(opts: AppOptions) {
 
   /* ---------- reports ---------- */
 
-  /** True when this user may open the firm behind this token. */
-  function mayOpen(user: SessionUser, firmToken: string) {
-    if (user.role === 'admin') return true;
-    const firm = db.prepare('select id from firms where report_token = ?').get(firmToken) as { id: string } | undefined;
-    return Boolean(firm && firm.id === user.firmId);
-  }
-
+  // Report links open without sign-in: the unguessable firm token is the
+  // access. A fellow token only opens under its own firm's token (enforced in
+  // the repository), and drafts stay admin-only. Too many wrong links from one
+  // address in 10 minutes and it is paused, so links can't be guessed.
+  const misses = new Map<string, { n: number; since: number }>();
+  const MISS_LIMIT = 30;
+  const MISS_WINDOW = 10 * 60_000;
+  const missCount = (ip: string) => {
+    const m = misses.get(ip);
+    return m && Date.now() - m.since < MISS_WINDOW ? m.n : 0;
+  };
+  const notFound = (req: Request, res: Response) => {
+    const ip = req.ip ?? '';
+    const m = misses.get(ip);
+    misses.set(ip, m && Date.now() - m.since < MISS_WINDOW ? { n: m.n + 1, since: m.since } : { n: 1, since: Date.now() });
+    if (misses.size > 10_000) misses.clear();
+    audit(db, 'report_denied', req.user ?? null, req.path);
+    res.status(404).json({ error: 'not_found' });
+  };
+  const notThrottled = (req: Request, res: Response, next: NextFunction) =>
+    !req.user && missCount(req.ip ?? '') >= MISS_LIMIT ? res.status(429).json({ error: 'rate_limited' }) : next();
   const reportQuery = (req: Request) => ({
     checkpointId: typeof req.query.cp === 'string' ? req.query.cp : undefined,
     includeDrafts: req.user?.role === 'admin' && req.query.drafts === '1',
   });
 
-  api.get('/reports/:firmToken', requireUser, async (req, res) => {
-    const user = req.user!;
-    if (!mayOpen(user, req.params.firmToken)) {
-      audit(db, 'report_denied', user, req.params.firmToken);
-      return res.status(404).json({ error: 'not_found' });
-    }
+  api.get('/reports/:firmToken', notThrottled, async (req, res) => {
+    const user = req.user ?? null;
     const model = await repo.getFirmReport(req.params.firmToken, reportQuery(req));
-    if (!model) return res.status(404).json({ error: 'not_found' });
+    if (!model) return notFound(req, res);
     audit(db, 'report_viewed', user, `${model.firm.name} · ${model.checkpoint.title}`);
     res.json(model);
   });
 
-  api.get('/reports/:firmToken/:fellowToken', requireUser, async (req, res) => {
-    const user = req.user!;
-    if (!mayOpen(user, req.params.firmToken)) {
-      audit(db, 'report_denied', user, `${req.params.firmToken}/${req.params.fellowToken}`);
-      return res.status(404).json({ error: 'not_found' });
-    }
+  api.get('/reports/:firmToken/:fellowToken', notThrottled, async (req, res) => {
+    const user = req.user ?? null;
     const model = await repo.getFellowReport(req.params.firmToken, req.params.fellowToken, reportQuery(req));
-    if (!model) return res.status(404).json({ error: 'not_found' });
+    if (!model) return notFound(req, res);
     audit(db, 'report_viewed', user, `${model.firm.name} · ${model.metrics.fellow.firstName} ${model.metrics.fellow.lastName} · ${model.checkpoint.title}`);
     res.json(model);
   });

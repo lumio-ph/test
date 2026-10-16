@@ -116,9 +116,9 @@ export function LearningJourney({ model }: { model: FellowReportModel }) {
   if (!withWords.length) return null;
 
   return (
-    <section id="learning" className="r-section">
+    <section id="learning" className="r-section r-section--paper">
       <div className="r-wrap">
-        <SectionHead eyebrow="02 · The learning journey" title={`What ${name} is taking away, session by session.`}>
+        <SectionHead eyebrow="03 · The learning journey" title={`What ${name} is taking away, session by session.`}>
           <p className="r-body">
             In {name}’s own words, from the feedback form after each masterclass. Every reflection is shown{' '}
             <strong>exactly as submitted</strong>: nothing has been rewritten, summarised or generated.
