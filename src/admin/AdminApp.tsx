@@ -356,6 +356,7 @@ function DataTab({ data }: { data: Dataset }) {
             ['Sessions', data.sessions.length],
             ['Attendance rows', data.sessionRecords.length],
             ['Capstone rows', data.capstones.length],
+            ['Self-update rows', (data.selfUpdates ?? []).length],
             ['Checkpoints', data.checkpoints.length],
           ] as const
         ).map(([k, v]) => (

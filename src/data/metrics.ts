@@ -24,6 +24,7 @@ import type {
   Dataset,
   Fellow,
   ISODate,
+  SelfUpdate,
   Session,
   SessionRecord,
 } from './types';
@@ -299,4 +300,47 @@ export function firmSummary(fellows: FellowMetrics[]): FirmSummary {
     ).length,
     reflectionsShared: sum((m) => m.lines.filter((l) => l.whatILearned || l.whatIllApply).length),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Checkpoint self updates                                             */
+/* ------------------------------------------------------------------ */
+
+/** Red under 60%; amber from 60% up to the cohort average; green at or above it. */
+export type SelfUpdateLevel = 'low' | 'mid' | 'high';
+
+export interface SelfUpdateMeasure {
+  count: number;
+  total: number;
+  /** Unrounded percentage. */
+  percent: number;
+  /** Unrounded cohort average percentage. */
+  cohortAverage: number;
+  level: SelfUpdateLevel;
+}
+
+export interface SelfUpdateView {
+  activities: SelfUpdateMeasure;
+  tracker: SelfUpdateMeasure;
+}
+
+export const selfUpdateLevel = (percent: number, cohortAverage: number): SelfUpdateLevel =>
+  percent < 60 ? 'low' : percent < cohortAverage ? 'mid' : 'high';
+
+/**
+ * The fellow's self-update figures at this checkpoint, with the cohort
+ * averages (equal-weighted mean of every cohort fellow's percentage).
+ * Null when the fellow has no figures for the checkpoint.
+ */
+export function selfUpdateAt(data: Dataset, fellowId: string, checkpoint: Checkpoint): SelfUpdateView | null {
+  const cohort = new Set(data.fellows.filter((f) => f.cohortId === checkpoint.cohortId).map((f) => f.id));
+  const rows = (data.selfUpdates ?? []).filter((r) => r.checkpointId === checkpoint.id && cohort.has(r.fellowId));
+  const mine = rows.find((r) => r.fellowId === fellowId);
+  if (!mine) return null;
+  const measure = (pick: (r: SelfUpdate) => number): SelfUpdateMeasure => {
+    const percent = (100 * pick(mine)) / mine.total;
+    const cohortAverage = mean(rows.map((r) => (100 * pick(r)) / r.total)) ?? percent;
+    return { count: pick(mine), total: mine.total, percent, cohortAverage, level: selfUpdateLevel(percent, cohortAverage) };
+  };
+  return { activities: measure((r) => r.activitiesCompleted), tracker: measure((r) => r.trackerFilledIn) };
 }

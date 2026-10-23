@@ -8,6 +8,12 @@ Fills the report data template from two programme files:
 
 Usage:
   python3 scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx [CAPSTONE.txt] [--forms FORMS.xlsx]
+      [--self-updates TRACKER.xlsx]
+
+  --self-updates TRACKER.xlsx (optional): a workbook with a sheet holding "Name",
+  "How many Yeses", "THIS IS HOW MANY ARE DONE" and "THIS IS HOW MANY THERE ARE"
+  (the "Copy of INVAI26 - Mandatory" tab). Fills the self_updates tab, which
+  drives the "Checkpoint · Self updates" card.
 
   --forms FORMS.xlsx (optional): a register whose "NOTE (Typeform)" columns say
   whether each fellow submitted the feedback form for each session. With it the
@@ -49,11 +55,19 @@ sys.path.insert(0, 'scripts')
 from build_data_template import build  # noqa: E402
 
 args = sys.argv[1:]
-FORMS = None
-if '--forms' in args:
-    i = args.index('--forms')
-    FORMS = args[i + 1]
+
+
+def option(flag):
+    if flag not in args:
+        return None
+    i = args.index(flag)
+    value = args[i + 1]
     del args[i:i + 2]
+    return value
+
+
+FORMS = option('--forms')
+SELF_UPDATES = option('--self-updates')
 FEEDBACK, REGISTER, OUT = args[0], args[1], args[2]
 CAPSTONE_LIST = args[3] if len(args) > 3 else None
 fb = load_workbook(FEEDBACK, data_only=True)
@@ -310,12 +324,42 @@ checkpoints = [
      'reporting_date': LAST_HELD, 'session_ids': ';'.join(held), 'status': 'published'},
 ]
 
+# ---------------- Checkpoint self updates ----------------
+# From a sheet with "Name", "How many Yeses", "THIS IS HOW MANY ARE DONE" and
+# "THIS IS HOW MANY THERE ARE" columns (the "Copy of INVAI26 - Mandatory" tab).
+self_updates, self_missing = [], []
+if SELF_UPDATES:
+    su_wb = load_workbook(SELF_UPDATES, data_only=True)
+
+    def su_sheet():
+        for ws in su_wb.worksheets:
+            for i, r in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=True)):
+                cells = [norm_header(x).lower() for x in (r or [])]
+                if 'how many yeses' in cells and 'this is how many are done' in cells:
+                    return ws, i + 1, cells
+        raise SystemExit('No sheet with "How many Yeses" and "THIS IS HOW MANY ARE DONE" columns.')
+
+    ws, hrow, cells = su_sheet()
+    ci = {name: cells.index(name) for name in ('name', 'how many yeses', 'this is how many are done', 'this is how many there are')}
+    figures = {}
+    for r in ws.iter_rows(min_row=hrow + 1, values_only=True):
+        if r and r[ci['name']] and r[ci['this is how many there are']]:
+            figures[key(r[ci['name']])] = (int(r[ci['how many yeses']]), int(r[ci['this is how many are done']]),
+                                           int(r[ci['this is how many there are']]))
+    for k, fid in fellow_by_key.items():
+        if k not in figures:
+            self_missing.append(fid)
+            continue
+        done, filled, total = figures[k]
+        self_updates.append({'fellow_id': fid, 'checkpoint_id': 'cp-2026-2', 'activities_completed': str(done),
+                             'tracker_filled_in': str(filled), 'total_activities': str(total)})
+
 TABLE_ROWS = {
     'cohorts': [{'cohort_id': COHORT, 'cohort_name': 'Africa Investor Fellowship 2026',
                  'programme_name': 'Africa Investor Fellowship', 'start_date': FIRST_SESSION.isoformat(),
                  'end_date': (FIRST_SESSION + timedelta(weeks=TOTAL_SESSIONS - 1)).isoformat()}],
     'firms': firms, 'fellows': fellows, 'sessions': sessions, 'attendance_feedback': records,
-    'capstone': capstone, 'checkpoints': checkpoints, 'authorised_users': [],
+    'capstone': capstone, 'self_updates': self_updates, 'checkpoints': checkpoints, 'authorised_users': [],
 }
 flags[('cohorts', 0)] = {'end_date': 'Assumed: 16 weekly sessions. Check the real end date.'}
 
@@ -342,7 +386,9 @@ wb.save(OUT)
 
 print(f'fellows={len(fellows)} firms={len(firms)} held={len(held)} submissions={submissions} '
       f'attendance_blank={blank_attendance} pending_but_feedback={pending_with_feedback} conflicts={len(conflicts)} '
-      f'capstone={len(capstone)} lab_pending={lab_pending}')
+      f'capstone={len(capstone)} lab_pending={lab_pending} self_updates={len(self_updates)}')
+if SELF_UPDATES:
+    print('no self-update figures for:', self_missing)
 print('left out (not on register):', left_out)
 print('on register, not in Basic info:', not_in_basic)
 print('feedback names not matched:', sorted(unmatched))

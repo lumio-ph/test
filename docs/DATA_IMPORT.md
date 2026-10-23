@@ -18,7 +18,8 @@ Yes/no columns accept `yes/no`, `y/n`, `true/false` or `1/0`.
 | `fellows.csv` | sponsored fellow | `fellow_id*`, `first_name*`, `last_name*`, `role`, `firm_id*`, `cohort_id*`, `report_token` |
 | `sessions.csv` | programme session | `session_id*`, `cohort_id*`, `session_number*`, `session_title*`, `session_date*`, `status` (`held`/`scheduled`/`cancelled`), `facilitator` |
 | `attendance_feedback.csv` | fellow × session held | `fellow_id*`, `session_id*`, `attended*`, `feedback_submitted*`, `what_i_learned`, `what_ill_apply`, `feedback_submitted_at` |
-| `capstone.csv` | Capstone status change | `fellow_id*`, `recorded_at*`, `submitted*`, `submission_date`, `submission_deadline*`, `submitted_on_time`, `assessment_status*` (`not_started`/`pending`/`complete`), `assessment_score`, `assessment_max_score`, `detailed_feedback` |
+| `capstone.csv` | Capstone status change | `fellow_id*`, `recorded_at*`, `submitted*`, `submission_date`, `submission_deadline`, `submitted_on_time`, `assessment_status*` (`not_started`/`pending`/`complete`), `assessment_score`, `assessment_max_score`, `detailed_feedback` |
+| `self_updates.csv` | fellow × checkpoint | `fellow_id*`, `checkpoint_id*`, `activities_completed*` (tracker items marked "Yes"), `tracker_filled_in*` (items not marked "Update pending"), `total_activities*` (e.g. 34). Drives the "Checkpoint · Self updates" card; a fellow without a row has no card. |
 | `checkpoints.csv` | reporting checkpoint | `checkpoint_id*`, `cohort_id*`, `checkpoint_title*`, `reporting_date*`, `session_ids*` (`s01;s02;…`), `status` (`draft`/`published`) |
 | `authorised_users.csv` | report recipient | `user_id*`, `email*`, `name`, `firm_id` (blank for Included VC admins), `role*` (`firm_leader`/`admin`), `access_status` (`active`/`invited`/`revoked`) |
 
@@ -57,6 +58,10 @@ involved.
 | Firm combined attendance / feedback | Pooled: total attended ÷ total held across the firm's fellows (feedback: total submissions ÷ total attended). |
 | "N points above/below the cohort average" | Difference between the two *displayed* (rounded) percentages, so the sentence always matches the numbers on screen. |
 | Submitted on time | `submitted_on_time` if given, otherwise `submission_date ≤ submission_deadline`. |
+| Activity completion % | `activities_completed` ÷ `total_activities` × 100 |
+| Tracker reporting % | `tracker_filled_in` ÷ `total_activities` × 100 |
+| Self-update cohort averages | Equal-weighted mean of every cohort fellow's percentage at that checkpoint. |
+| Self-update colour | Red under 60%; amber from 60% up to the cohort average; green at or above the cohort average (unrounded figures). |
 | Capstone score and detailed feedback | Shown only when `assessment_status = complete`. Otherwise "Assessment Pending". |
 
 Percentages are rounded to the nearest whole number (half up).

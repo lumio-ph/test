@@ -7,6 +7,7 @@
  */
 import type {
   CapstoneRecord,
+  SelfUpdate,
   Checkpoint,
   Dataset,
   Fellow,
@@ -370,6 +371,19 @@ const checkpoints: Checkpoint[] = [
   },
 ];
 
+// Checkpoint self updates at Checkpoint 2: a fixed, made-up spread so the
+// demo shows all three colours (green, amber and red).
+const selfUpdates: SelfUpdate[] = [...featured, ...cohortFellows].map((f, i) => {
+  const completed = [32, 23, 18, 30, 27, 33, 25, 29, 31, 34][i % 10];
+  return {
+    fellowId: f.id,
+    checkpointId: 'cp-2026-2',
+    activitiesCompleted: completed,
+    trackerFilledIn: Math.min(34, completed + (i % 3) + 1),
+    total: 34,
+  };
+});
+
 export const sampleDataset: Dataset = {
   label: 'Demonstration data',
   isSample: true,
@@ -387,6 +401,7 @@ export const sampleDataset: Dataset = {
   sessions,
   sessionRecords,
   capstones,
+  selfUpdates,
   checkpoints,
   users: [
     { id: 'u1', email: 'managing.partner@example-capital.demo', name: 'Managing Partner (demo)', firmId: 'firm-example-capital', role: 'firm_leader', accessStatus: 'active' },

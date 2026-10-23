@@ -12,6 +12,7 @@ type DatabaseSync = DatabaseSyncType;
 import type {
   AuthorisedUser,
   CapstoneRecord,
+  SelfUpdate,
   Checkpoint,
   Cohort,
   Dataset,
@@ -48,6 +49,9 @@ create table if not exists capstones (
   submitted integer not null, submission_date text, submission_deadline text not null,
   submitted_on_time integer, assessment_status text not null, assessment_score real,
   assessment_max_score real, detailed_feedback text);
+create table if not exists self_updates (
+  fellow_id text not null, checkpoint_id text not null, activities_completed real not null,
+  tracker_filled_in real not null, total real not null, primary key (fellow_id, checkpoint_id));
 create table if not exists checkpoints (
   id text primary key, cohort_id text not null, title text not null,
   reporting_date text not null, session_ids text not null, status text not null);
@@ -179,6 +183,15 @@ export function loadDataset(db: DB): Dataset {
         detailedFeedback: s(r.detailed_feedback),
       }),
     ),
+    selfUpdates: all(db, 'select * from self_updates order by rowid').map(
+      (r): SelfUpdate => ({
+        fellowId: String(r.fellow_id),
+        checkpointId: String(r.checkpoint_id),
+        activitiesCompleted: Number(r.activities_completed),
+        trackerFilledIn: Number(r.tracker_filled_in),
+        total: Number(r.total),
+      }),
+    ),
     checkpoints: all(db, 'select * from checkpoints order by reporting_date').map(
       (r): Checkpoint => ({
         id: String(r.id),
@@ -251,6 +264,10 @@ const writers: { [K in Key]: (db: DB, items: Dataset[K]) => void } = {
         v(c.detailedFeedback),
       );
   },
+  selfUpdates(db, items) {
+    const st = db.prepare('insert or replace into self_updates values (?,?,?,?,?)');
+    for (const r of items ?? []) st.run(r.fellowId, r.checkpointId, r.activitiesCompleted, r.trackerFilledIn, r.total);
+  },
   checkpoints(db, items) {
     const st = db.prepare('insert into checkpoints values (?,?,?,?,?,?)');
     for (const c of items) st.run(c.id, c.cohortId, c.title, c.reportingDate, JSON.stringify(c.sessionIds), c.status);
@@ -268,6 +285,7 @@ const tableName: Record<Key, string> = {
   sessions: 'sessions',
   sessionRecords: 'session_records',
   capstones: 'capstones',
+  selfUpdates: 'self_updates',
   checkpoints: 'checkpoints',
   users: 'users',
 };

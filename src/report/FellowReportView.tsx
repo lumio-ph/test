@@ -1,5 +1,6 @@
 import type { FellowReportModel } from "../data/repository";
 import { CapstoneLab } from "./fellow/CapstoneLab";
+import { SelfUpdatesCard } from "./fellow/SelfUpdatesCard";
 import {
   AttendanceSection,
   FellowHero,
@@ -24,6 +25,7 @@ export function FellowReportView({ model }: { model: FellowReportModel }) {
       <ReportHeader ctx={model} fellowToken={m.fellow.reportToken} />
       <main>
         <FellowHero model={model} />
+        <SelfUpdatesCard model={model} />
         <AttendanceSection model={model} />
         <CapstoneLab metrics={m} eyebrow="02 · Capstone Lab" />
         <LearningJourney model={model} />

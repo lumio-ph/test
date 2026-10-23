@@ -42,6 +42,20 @@ describe('CSV import', () => {
     expect(r.issues.map((i) => i.row)).toEqual([1, 1]);
   });
 
+  it('imports checkpoint self updates and rejects impossible figures', () => {
+    const s = spec('selfUpdates');
+    const ok = importCsv(s, templateCsv(s, sampleDataset));
+    expect(ok.issues).toEqual([]);
+    expect(ok.items).toEqual(sampleDataset.selfUpdates);
+    const bad = importCsv(
+      s,
+      'fellow_id,checkpoint_id,activities_completed,tracker_filled_in,total_activities\n' +
+        'f1,cp,40,30,34\nf2,cp,,30,34\nf3,cp,21,23,34\n',
+    );
+    expect(bad.items).toHaveLength(1);
+    expect(bad.issues.map((i) => i.row)).toEqual([1, 2]);
+  });
+
   it('parses CRLF and BOM', () => {
     expect(parseCsv('﻿a,b\r\n1,2\r\n')).toEqual([['a', 'b'], ['1', '2']]);
   });

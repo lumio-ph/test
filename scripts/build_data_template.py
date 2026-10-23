@@ -67,6 +67,12 @@ TABLES = [
    ('assessment_score', 0, 'num', 'Leave blank until assessed'),
    ('assessment_max_score', 0, 'num', 'Default 100'),
    ('detailed_feedback', 0, 'longtext', 'Assessor\'s written feedback, shown in full when complete')]),
+ ('self_updates', 'Checkpoint self updates: one row per fellow per checkpoint, from the fellows\' checkpoint tracker. Shown as the "Checkpoint · Self updates" card.', [
+   ('fellow_id', 1, 'ref:fellows', ''),
+   ('checkpoint_id', 1, 'text', 'The checkpoint these figures belong to, e.g. cp-2026-2'),
+   ('activities_completed', 1, 'num', 'Tracker items marked "Yes"'),
+   ('tracker_filled_in', 1, 'num', 'Tracker items not marked "Update pending"'),
+   ('total_activities', 1, 'num', 'Number of activities on the tracker, e.g. 34')]),
  ('checkpoints', 'One row per progress report round. A checkpoint fixes which sessions that report covers.', [
    ('checkpoint_id', 1, 'text', 'e.g. cp-2026-1'),
    ('cohort_id', 1, 'ref:cohorts', ''),
@@ -91,6 +97,7 @@ def rows(tab):
         'fellows': lambda x: x['fellow_id'] in FEATURED,
         'attendance_feedback': lambda x: x['fellow_id'] in FEATURED,
         'capstone': lambda x: x['fellow_id'] in FEATURED,
+        'self_updates': lambda x: x['fellow_id'] in FEATURED,
     }.get(tab, lambda x: True)
     return [x for x in r if keep(x)]
 

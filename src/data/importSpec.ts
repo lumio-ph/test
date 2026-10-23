@@ -12,6 +12,7 @@ import type {
   Dataset,
   Fellow,
   Firm,
+  SelfUpdate,
   Session,
   SessionRecord,
 } from './types';
@@ -358,6 +359,41 @@ const capstones: TableSpec<CapstoneRecord> = {
   },
 };
 
+const selfUpdates: TableSpec<SelfUpdate> = {
+  key: 'selfUpdates',
+  file: 'self_updates.csv',
+  title: 'Checkpoint self updates',
+  description:
+    'One row per fellow per checkpoint, from the fellows’ checkpoint tracker. Shown as the “Checkpoint · Self updates” card.',
+  columns: [
+    { name: 'fellow_id', required: true, help: '' },
+    { name: 'checkpoint_id', required: true, help: 'The checkpoint these figures belong to' },
+    { name: 'activities_completed', required: true, help: 'Tracker items marked "Yes"' },
+    { name: 'tracker_filled_in', required: true, help: 'Tracker items not marked "Update pending"' },
+    { name: 'total_activities', required: true, help: 'Number of activities on the tracker, e.g. 34' },
+  ],
+  toRows: (d) =>
+    (d.selfUpdates ?? []).map((r) => [r.fellowId, r.checkpointId, r.activitiesCompleted, r.trackerFilledIn, r.total]),
+  parse(rec, row, issues) {
+    const c = { rec, row, issues };
+    const fellowId = req(c, 'fellow_id');
+    const checkpointId = req(c, 'checkpoint_id');
+    const done = num(c, 'activities_completed');
+    const filled = num(c, 'tracker_filled_in');
+    const total = num(c, 'total_activities');
+    if (!fellowId || !checkpointId || done === undefined || filled === undefined || total === undefined) {
+      if (fellowId && checkpointId) issues.push({ row, message: 'Needs activities_completed, tracker_filled_in and total_activities.' });
+      return null;
+    }
+    if (!(total > 0) || done < 0 || filled < 0 || done > total || filled > total) {
+      issues.push({ row, message: `Figures must be between 0 and total_activities (${total}).` });
+      return null;
+    }
+    if (done > filled) issues.push({ row, message: 'More activities completed than tracker items filled in. Check the figures.' });
+    return { fellowId, checkpointId, activitiesCompleted: done, trackerFilledIn: filled, total };
+  },
+};
+
 const checkpoints: TableSpec<Checkpoint> = {
   key: 'checkpoints',
   file: 'checkpoints.csv',
@@ -430,6 +466,7 @@ export const tableSpecs: TableSpec[] = [
   sessions,
   sessionRecords,
   capstones,
+  selfUpdates,
   checkpoints,
   users,
 ] as TableSpec[];

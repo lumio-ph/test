@@ -92,6 +92,20 @@ export interface CapstoneRecord {
   detailedFeedback?: string;
 }
 
+/**
+ * The fellow's own checkpoint tracker at one checkpoint: how many of the
+ * programme's activities they have completed ("Yes") and how many tracker
+ * items they have filled in at all (anything but "Update pending").
+ */
+export interface SelfUpdate {
+  fellowId: string;
+  checkpointId: string;
+  activitiesCompleted: number;
+  trackerFilledIn: number;
+  /** Number of activities on the tracker, e.g. 34. */
+  total: number;
+}
+
 export interface Checkpoint {
   id: string;
   cohortId: string;
@@ -122,6 +136,8 @@ export interface Dataset {
   sessions: Session[];
   sessionRecords: SessionRecord[];
   capstones: CapstoneRecord[];
+  /** Optional in older data; treated as empty. */
+  selfUpdates?: SelfUpdate[];
   checkpoints: Checkpoint[];
   users: AuthorisedUser[];
 }

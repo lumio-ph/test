@@ -48,7 +48,7 @@ Requires Node 22.5 or newer.
 
 `templates/included-vc-report-data-template.xlsx` is the spreadsheet to fill in: one tab per table, dropdowns, notes on every column, example rows, and a `check_figures` tab. Upload the whole workbook in the admin's Import data tab.
 
-`scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx` fills the template from the feedback export (Basic info + All INVCA-Investor) and the checkpoint register (attendance and THE LAB). `scripts/fill_from_feedback_export.py` is the older, feedback-only version.
+`scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx` fills the template from the feedback export (Basic info + All INVCA-Investor) and the checkpoint register (attendance and THE LAB); `--self-updates TRACKER.xlsx` adds the Checkpoint · Self updates figures. `scripts/fill_from_feedback_export.py` is the older, feedback-only version.
 
 ## Docs
 

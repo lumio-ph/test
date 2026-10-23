@@ -73,6 +73,13 @@ export function validateDataset(d: Dataset): DataIssue[] {
       warn('Capstone', `Submitted without a submission date for "${c.fellowId}" — on-time status unknown`);
   }
 
+  const checkpointIds = new Set(d.checkpoints.map((c) => c.id));
+  for (const r of d.selfUpdates ?? []) {
+    if (!fellowIds.has(r.fellowId)) err('Self updates', `Self-update row for unknown fellow "${r.fellowId}"`);
+    if (!checkpointIds.has(r.checkpointId))
+      err('Self updates', `Self-update row for "${r.fellowId}" names unknown checkpoint "${r.checkpointId}"`);
+  }
+
   for (const u of d.users) {
     if (u.role === 'firm_leader' && (!u.firmId || !firmIds.has(u.firmId)))
       err('Recipients', `${u.email} is a firm leader without a valid firm`);

@@ -11,9 +11,11 @@ import {
   cohortBenchmarks,
   fellowMetrics,
   firmSummary,
+  selfUpdateAt,
   type CohortBenchmarks,
   type FirmSummary,
   type FellowMetrics,
+  type SelfUpdateView,
 } from './metrics';
 import type { Checkpoint, Cohort, Dataset, Firm } from './types';
 
@@ -38,6 +40,8 @@ export interface FellowReportModel extends ReportContext {
   metrics: FellowMetrics;
   /** Other fellows from the same firm (for "also sponsored" navigation). */
   colleagues: FellowMetrics[];
+  /** Checkpoint self updates, or null when there are no figures yet. */
+  selfUpdate: SelfUpdateView | null;
 }
 
 export interface ReportQuery {
@@ -117,6 +121,7 @@ export class InMemoryRepository implements ReportRepository {
       ...ctx,
       metrics,
       colleagues: fellows.filter((m) => m !== metrics),
+      selfUpdate: selfUpdateAt(this.read(), metrics.fellow.id, ctx.checkpoint),
     };
   }
 

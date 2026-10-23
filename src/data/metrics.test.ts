@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capstoneAt, cohortBenchmarks, compare, fellowMetrics, rate } from './metrics';
+import { capstoneAt, cohortBenchmarks, compare, fellowMetrics, rate, selfUpdateAt, selfUpdateLevel } from './metrics';
 import { sampleDataset as data } from './sample/sampleDataset';
 import type { Checkpoint, Dataset } from './types';
 
@@ -149,5 +149,50 @@ describe('cohort benchmarks', () => {
     expect(compare(88, 81)).toBe('above');
     expect(compare(81, 81)).toBe('level');
     expect(compare(null, 81)).toBe('unknown');
+  });
+});
+
+describe('checkpoint self updates', () => {
+  const ds = (rows: Array<[string, number, number]>): Dataset => ({
+    ...data,
+    selfUpdates: rows.map(([fellowId, done, filled]) => ({
+      fellowId,
+      checkpointId: 'cp-2026-2',
+      activitiesCompleted: done,
+      trackerFilledIn: filled,
+      total: 34,
+    })),
+  });
+
+  it('colours red under 60%, amber below the cohort average, green at or above it', () => {
+    expect(selfUpdateLevel(59.9, 80)).toBe('low');
+    expect(selfUpdateLevel(60, 80)).toBe('mid');
+    expect(selfUpdateLevel(79.9, 80)).toBe('mid');
+    expect(selfUpdateLevel(80, 80)).toBe('high');
+    // Under 60% stays red even when the cohort average is lower still.
+    expect(selfUpdateLevel(55, 40)).toBe('low');
+  });
+
+  it('works out both rates and equal-weighted cohort averages for the checkpoint', () => {
+    const d = ds([
+      ['fellow-alexandra-smith', 21, 23],
+      ['fellow-daniel-mensah', 34, 34],
+      ['fellow-amara-okafor', 17, 17],
+    ]);
+    const v = selfUpdateAt(d, 'fellow-alexandra-smith', cp('cp-2026-2'))!;
+    expect(v.activities.count).toBe(21);
+    expect(Math.round(v.activities.percent)).toBe(62);
+    expect(v.activities.cohortAverage).toBeCloseTo((100 * (21 + 34 + 17)) / (3 * 34));
+    expect(v.activities.level).toBe('mid');
+    expect(Math.round(v.tracker.percent)).toBe(68);
+    expect(selfUpdateAt(d, 'fellow-daniel-mensah', cp('cp-2026-2'))!.tracker.level).toBe('high');
+    expect(selfUpdateAt(d, 'fellow-amara-okafor', cp('cp-2026-2'))!.activities.level).toBe('low');
+  });
+
+  it('shows nothing for a fellow, or a checkpoint, without figures', () => {
+    const d = ds([['fellow-alexandra-smith', 21, 23]]);
+    expect(selfUpdateAt(d, 'fellow-daniel-mensah', cp('cp-2026-2'))).toBeNull();
+    expect(selfUpdateAt(d, 'fellow-alexandra-smith', cp('cp-2026-1'))).toBeNull();
+    expect(selfUpdateAt({ ...data, selfUpdates: undefined }, 'fellow-alexandra-smith', cp('cp-2026-2'))).toBeNull();
   });
 });
