@@ -26,3 +26,18 @@ services:
         sync: false
       - key: SEED_DEMO
         value: "1"
+
+  # Frame Studio (public/frame/) on its own, as a free static site: no build,
+  # no server. The reports app above also serves it at /frame/.
+  - type: web
+    name: frame-studio
+    runtime: static
+    buildCommand: echo "Frame Studio has no build step"
+    staticPublishPath: ./public/frame
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

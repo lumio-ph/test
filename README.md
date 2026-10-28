@@ -67,6 +67,9 @@ uploaded. It is plain HTML/CSS/JS in `public/frame/`, so it is served at
   sets the default headline, tag line and logo). People can upload their
   own frame too.
 
+On Render, the Blueprint (`render.yaml`) also creates `frame-studio`, a free
+static site that publishes `public/frame/` on its own URL.
+
 ## Docs
 
 - [docs/DATA_IMPORT.md](docs/DATA_IMPORT.md) — import format, and exactly how every number is calculated
