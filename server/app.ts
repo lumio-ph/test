@@ -376,6 +376,13 @@ export function createApp(opts: AppOptions) {
         },
       }),
     );
+    // Frame Studio: a standalone page (public/frame/) beside the report app.
+    // Express treats /frame and /frame/ as one route; the page's relative links need the slash.
+    app.get('/frame/', (req, res) => {
+      if (!req.originalUrl.split('?')[0].endsWith('/')) return res.redirect(301, '/frame/');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(opts.staticDir!, 'frame', 'index.html'));
+    });
     app.get('*', (_req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(opts.staticDir!, 'index.html'));

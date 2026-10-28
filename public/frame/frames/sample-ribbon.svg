@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#128a38"/>
+      <stop offset="0.3" stop-color="#31b44b"/>
+      <stop offset="0.65" stop-color="#7ed321"/>
+      <stop offset="1" stop-color="#ffc400"/>
+    </linearGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b2414" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#0b2414" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#0b2414" stop-opacity="0.94"/>
+    </linearGradient>
+  </defs>
+  <!-- darken the lower part so the name reads -->
+  <rect x="0" y="640" width="1080" height="440" fill="url(#scrim)"/>
+  <!-- border with a rounded window -->
+  <path fill="url(#brand)" fill-rule="evenodd"
+        d="M0 0H1080V1080H0Z M40 88Q40 40 88 40H992Q1040 40 1040 88V992Q1040 1040 992 1040H88Q40 1040 40 992Z"/>
+  <!-- corner ribbon -->
+  <g transform="translate(40 92)">
+    <path d="M0 0H330L300 36L330 72H0Z" fill="#111111"/>
+    <text x="28" y="47" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="3" fill="#ffffff">FELLOW 2026</text>
+  </g>
+  <rect x="440" y="1000" width="200" height="8" rx="4" fill="#ffc400"/>
+</svg>

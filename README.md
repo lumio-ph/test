@@ -50,6 +50,23 @@ Requires Node 22.5 or newer.
 
 `scripts/fill_from_exports.py FEEDBACK.xlsx REGISTER.xlsx OUT.xlsx` fills the template from the feedback export (Basic info + All INVCA-Investor) and the checkpoint register (attendance and THE LAB); `--self-updates TRACKER.xlsx` adds the Checkpoint · Self updates figures. `scripts/fill_from_feedback_export.py` is the older, feedback-only version.
 
+## Frame Studio (`/frame/`)
+
+A profile-frame image generator: people pick a frame, upload their photo and
+logo, type their name and designation, and download a PNG or JPG (square,
+portrait or story size). Everything happens in the browser; nothing is
+uploaded. It is plain HTML/CSS/JS in `public/frame/`, so it is served at
+`/frame/` by this app and can also be hosted on any static host.
+
+- Four built-in frames (Halo, Spotlight, Editorial, Split), six colour
+  themes plus custom colours, five headline fonts.
+- Drag, scroll or pinch to position the photo; brightness and black & white.
+- Logo position, size, white backing and white-background removal.
+- Ready-made artwork frames: add a PNG/SVG with a transparent window to
+  `public/frame/frames/` and list it in `public/frame/config.js` (which also
+  sets the default headline, tag line and logo). People can upload their
+  own frame too.
+
 ## Docs
 
 - [docs/DATA_IMPORT.md](docs/DATA_IMPORT.md) — import format, and exactly how every number is calculated
